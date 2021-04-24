@@ -1,5 +1,7 @@
+import RTree
+
 def main():
-    pass
+    tree = RTree.Tree(2)
 
 
 if __name__ == "__main__":
