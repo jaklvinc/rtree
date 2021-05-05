@@ -1,5 +1,6 @@
 import RTree
 
+
 def main():
     tree = RTree.Tree(2)
 
