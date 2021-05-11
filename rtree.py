@@ -61,6 +61,11 @@ class RTreeStorage(ABC):
     def get_split_type(self) -> SplitType:
         pass
 
+    # Number of nodes
+    @abstractmethod
+    def count(self) -> int:
+        pass
+
     @abstractmethod
     def get_node(self, index: int) -> Node:
         pass
@@ -92,6 +97,9 @@ class MemoryRTreeStorage(RTreeStorage):
     def get_split_type(self) -> SplitType:
         return self._split_type
 
+    def count(self) -> int:
+        return len(self._data)
+
     def get_node(self, index: int) -> Node:
         return copy.deepcopy(self._data[index])
 
@@ -115,6 +123,9 @@ class DiskRTreeStorage(RTreeStorage):
         pass
 
     def get_split_type(self) -> SplitType:
+        pass
+
+    def count(self) -> int:
         pass
 
     def get_node(self, index: int) -> Node:
