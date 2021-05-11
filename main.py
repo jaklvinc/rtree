@@ -1,8 +1,8 @@
-import RTree
+import rtree
 
 
 def main():
-    tree = RTree.Tree(2)
+    tree = rtree.Tree(2)
 
 
 if __name__ == "__main__":
