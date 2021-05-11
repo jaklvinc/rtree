@@ -42,7 +42,7 @@ class MemoryRTreeStorage(RTreeStorage):
         self._m = m
         self._split_type = split_type
 
-        self._data = [LeafNode((0 for x in range(dim)),0)]
+        self._data = []
 
     def get_dim(self) -> int:
         return self._dim
