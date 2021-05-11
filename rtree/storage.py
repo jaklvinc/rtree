@@ -1,51 +1,7 @@
 from abc import ABC, abstractmethod
-from enum import Enum
 import copy
-
-
-# TODO: probably move all of this into package?
-
-class SplitType(Enum):
-    TYPE1 = 1,
-    TYPE2 = 2,
-    TYPE3 = 3
-
-
-class Index:
-    def __init__(self,data):
-        self.container = data
-        self.child = None
-
-class Node:
-    def __init__(self,M):
-        self.M = M
-        self.storedData = list(Index)
-    
-    def Add(self,data = tuple()):
-        idx = Index(data)
-        if ( self.storedData.count() < self.M ):
-            self.storedData.append(idx)
-        else:
-            for index in self.storedData:
-                pass
-
-
-
-class Tree:
-    def __init__(self,dim,insertType,M = 4):
-        self.dim = dim
-        self.insType = insertType
-        self.m = M
-        self.root = None
-    
-    def Insert(self,toAdd = tuple()):
-        if ( toAdd.count() != self.dim ):
-            return False
-            
-        node = Node(self.m)
-        if ( self.root == None ):
-            self.root=node
-        self.root.Add(toAdd)
+from rtree import RTreeSplitType
+from rtree.node import Node
 
 
 class RTreeStorage(ABC):
@@ -58,7 +14,7 @@ class RTreeStorage(ABC):
         pass
 
     @abstractmethod
-    def get_split_type(self) -> SplitType:
+    def get_split_type(self) -> RTreeSplitType:
         pass
 
     # Number of nodes
@@ -81,7 +37,7 @@ class RTreeStorage(ABC):
 
 
 class MemoryRTreeStorage(RTreeStorage):
-    def __init__(self, dim: int, m: int, split_type: SplitType):
+    def __init__(self, dim: int, m: int, split_type: RTreeSplitType):
         self._dim = dim
         self._m = m
         self._split_type = split_type
@@ -94,7 +50,7 @@ class MemoryRTreeStorage(RTreeStorage):
     def get_m(self) -> int:
         return self._m
 
-    def get_split_type(self) -> SplitType:
+    def get_split_type(self) -> RTreeSplitType:
         return self._split_type
 
     def count(self) -> int:
@@ -122,7 +78,7 @@ class DiskRTreeStorage(RTreeStorage):
     def get_m(self) -> int:
         pass
 
-    def get_split_type(self) -> SplitType:
+    def get_split_type(self) -> RTreeSplitType:
         pass
 
     def count(self) -> int:
@@ -136,8 +92,3 @@ class DiskRTreeStorage(RTreeStorage):
 
     def add_node(self, node: Node) -> int:
         pass
-
-
-class RTree:
-    def __init__(self, storage: RTreeStorage):
-        self._storage = storage

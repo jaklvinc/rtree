@@ -2,7 +2,8 @@ import rtree
 
 
 def main():
-    tree = rtree.Tree(2)
+    # tree = rtree.RTree()
+    pass
 
 
 if __name__ == "__main__":
