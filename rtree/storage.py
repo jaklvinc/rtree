@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 import copy
 from rtree import RTreeSplitType
-from rtree.node import Node
+from rtree.node import LeafNode, Node
 
 
 class RTreeStorage(ABC):
@@ -42,7 +42,7 @@ class MemoryRTreeStorage(RTreeStorage):
         self._m = m
         self._split_type = split_type
 
-        self._data = []
+        self._data = [LeafNode((0 for x in range(dim)),0)]
 
     def get_dim(self) -> int:
         return self._dim
