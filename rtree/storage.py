@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 import copy
-from . import RTreeSplitType
+from .split_type import RTreeSplitType
 from .node import Node
 
 
