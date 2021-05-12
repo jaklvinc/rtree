@@ -33,7 +33,10 @@ class ControlPanel:
                 break
 
             if (cmd, selected_mode) in self.COMMANDS:
-                status = self.COMMANDS[(cmd, selected_mode)](self, args)
+                if len(args) != self.COMMANDS[(cmd, selected_mode)][1]:
+                    status = 'Usage: {} {}'.format(cmd, self.COMMANDS[cmd, selected_mode][2])
+                else:
+                    status = self.COMMANDS[(cmd, selected_mode)][0](self, args)
             else:
                 status = 'Command \'{}\' not found'.format(cmd)
 
@@ -65,7 +68,7 @@ class ControlPanel:
         for i, col in enumerate(cols):
             cols_w[i] = max(cols_w[i], len(col))
 
-        title = 'List of r-trees in directory \'' + self._dir + '\''
+        title = 'List of r-trees in directory \'{}\''.format(self._dir)
 
         w = max(sum(cols_w) + len(cols_w) + 1, len(title) + 2, 0 if status is None else len(status) + 4)
 
@@ -86,18 +89,38 @@ class ControlPanel:
             ], cols_w, w)
         print()
         print()
-
-        print('Commands:')
-        print(' ' * 4 + 'reload')
-        print(' ' * 4 + 'select [R-TREE]')
-        print(' ' * 4 + 'create [NAME]')
-        print(' ' * 4 + 'rename [R-TREE] [NAME]')
-        print(' ' * 4 + 'delete [R-TREE]')
-        print(' ' * 4 + 'exit')
         print()
 
+        self._print_commands(False)
+
     def _print_selected(self, status: Optional[str]):
-        # TODO
+        title = 'R-tree \'{}\''.format(self._selected[0])
+        # TODO: remove name?
+        # TODO: add more fields
+        labels = ['Name', 'Size']
+        label_w = max(len(r) for r in labels)
+
+        fields = [(self._selected[0], self._left), ('0', self._right)]
+        fields_w = max(len(s) for s, fn in fields)
+
+        rows = []
+
+        for i, (s, fn) in enumerate(fields):
+            rows.append('{}: {}'.format(self._right(labels[i], label_w), fn(s, fields_w)))
+
+        w = max(len(title) + 2, max(len(r) for r in rows) + 2, 0 if status is None else len(status) + 4)
+
+        self._print_status(status, w)
+        print(self._center(title, w))
+        print()
+
+        for r in rows:
+            print(self._center(r, w))
+        print()
+        print()
+        print()
+
+        self._print_commands(True)
         pass
 
     def _print_status(self, status: Optional[str], width: int):
@@ -111,6 +134,22 @@ class ControlPanel:
 
     def _print_table_row(self, cells: Iterable[str], cols_w: List[int], width: int):
         print(self._center(' '.join(self._center(s, cols_w[i]) for i, s in enumerate(cells)), width))
+
+    def _print_commands(self, selected_mode: bool):
+        print('Commands:')
+
+        cmds = []
+
+        for (cmd, mode), val in self.COMMANDS.items():
+            if mode != selected_mode:
+                continue
+            cmds.append(('    {} {}'.format(cmd, val[2]), val[3]))
+
+        w = max(len(cmd) for cmd, _ in cmds) + 4
+
+        for cmd, desc in cmds:
+            print(self._left(cmd, w), desc, sep='')
+        print()
 
     def _calcColsWidths(self) -> List[int]:
         # TODO: Add more fields
@@ -138,14 +177,10 @@ class ControlPanel:
                 return i
 
     def _cmd_reload(self, args: List[str]) -> Optional[str]:
-        # TODO: check args len?
         self._load_trees()
         return 'Directory reloaded'
 
     def _cmd_select(self, args: List[str]) -> Optional[str]:
-        if len(args) != 1:
-            return 'Usage: select [R-TREE]'
-
         i = self._find_tree_index(args[0])
         if i is None:
             return 'Cannot find r-tree with id or name \'{}\''.format(args[0])
@@ -153,9 +188,6 @@ class ControlPanel:
         self._selected = self._trees[i]
 
     def _cmd_create(self, args: List[str]) -> Optional[str]:
-        if len(args) != 1:
-            return 'Usage: create [NAME]'
-
         for name, _ in self._trees:
             if name == args[0]:
                 return 'R-tree named \'{}\' already exists'.format(args[0])
@@ -165,9 +197,6 @@ class ControlPanel:
         pass
 
     def _cmd_rename(self, args: List[str]) -> Optional[str]:
-        if len(args) != 2:
-            return 'Usage: rename [R-TREE] [NAME]'
-
         i = self._find_tree_index(args[0])
         if i is None:
             return 'Cannot find r-tree with id or name \'{}\''.format(args[0])
@@ -189,9 +218,6 @@ class ControlPanel:
             return 'Error with renaming r-tree file'
 
     def _cmd_delete(self, args: List[str]) -> Optional[str]:
-        if len(args) != 1:
-            return 'Usage: delete [R-TREE]'
-
         i = self._find_tree_index(args[0])
         if i is None:
             return 'Cannot find r-tree with id or name \'{}\''.format(args[0])
@@ -206,18 +232,18 @@ class ControlPanel:
             return 'Error with deleting r-tree file'
 
     def _cmd_exit(self, args: List[str]) -> Optional[str]:
-        # TODO: check args len?
         self._selected = None
         return None
 
     COMMANDS = {
         # CMD, SELECTED_MODE
-        ('reload', False): _cmd_reload,
-        ('select', False): _cmd_select,
-        ('create', False): _cmd_create,
-        ('rename', False): _cmd_rename,
-        ('delete', False): _cmd_delete,
-        ('exit', True): _cmd_exit,
+        ('reload', False): (_cmd_reload, 0, '', 'Reloads the directory'),
+        ('select', False): (_cmd_select, 1, 'R-TREE', ''),
+        ('create', False): (_cmd_create, 1, 'NAME', 'Creates new r-tree with name NAME'),
+        ('rename', False): (_cmd_rename, 2, 'R-TREE NAME', 'Renames existing r-tree'),
+        ('delete', False): (_cmd_delete, 1, 'R-TREE', 'Deletes existing r-tree'),
+        ('exit', False): (None, 0, '', 'Exits the program'),
+        ('exit', True): (_cmd_exit, 0, '', 'Exits to list od r-trees'),
     }
 
 
