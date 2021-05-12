@@ -1,6 +1,6 @@
 from enum import Enum
-from rtree.storage import RTreeStorage
-from rtree.node import Entry, Node
+from .storage import RTreeStorage
+from .node import Entry, Node
 
 
 class RTreeSplitType(Enum):

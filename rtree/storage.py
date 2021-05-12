@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 import copy
-from rtree import RTreeSplitType
-from rtree.node import LeafNode, Node
+from . import RTreeSplitType
+from .node import Node
 
 
 class RTreeStorage(ABC):
