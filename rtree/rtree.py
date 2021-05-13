@@ -3,7 +3,7 @@ from queue import Queue
 from .split_type import RTreeSplitType
 from .storage import Storage, MemoryStorage, DiskStorage
 from .node import Node, LeafEntry, NonLeafEntry
-from typing import Tuple
+from typing import Tuple, List
 
 
 def bounding_box_area(box: Tuple[list, list]) -> int:
@@ -21,6 +21,13 @@ def min_bounding_box(first: Tuple[list, list], second: Tuple[list, list]) -> Tup
         first_coords.append(min(first[0][x], second[0][x]))
         second_coords.append(max(first[1][x], second[1][x]))
     return first_coords, second_coords
+
+
+def overlaps(first: Tuple[list, list], second: Tuple[list, list]) -> bool:
+    for x in range(len(first[0])):
+        if first[0][x] > second[1][x] or first[1][x] < second[0][x]:
+            return False
+    return True
 
 
 class RTree:
@@ -67,10 +74,25 @@ class RTree:
         pass
 
     def _quadratic_split(self, split_this: Node):
-        max_area = float('inf')
+        max_area = float(-1)
         max_area_pair = 0
         for pair in combinations(split_this.entries, 2):
-            area = min_bounding_box(pair[0], pair[1])
+            bounding_box = min_bounding_box(pair[0], pair[1])
+            box_area = bounding_box_area(bounding_box)
+            if box_area > max_area:
+                max_area = box_area
+                max_area_pair = pair[0], pair[1]
+
+
+        old_parent = split_this.get_parent_entry()
+        if old_parent == 0:
+            new_parent_node = Node(is_leaf=False, max_size=self._storage.get_node_size())
+            self._storage.set_node(0, new_parent_node)
+            old_parent = (0, 0)
+        first_node = Node(is_leaf=True, max_size=self._storage.get_node_size())
+        first_node.add_entry(max_area_pair[0])
+        second_node = Node(is_leaf=True, max_size=self._storage.get_node_size())
+        second_node.add_entry(max_area_pair[1])
         # TODO
 
     def _linear_split(self, split_this: Node):
@@ -93,9 +115,10 @@ class RTree:
             self._split_node(insert_node, self._storage.get_split_type())
         # TODO
 
-    def find(self, search_pos: tuple, node_idx: int = 0) -> int:
+    def search_range(self, search_box: Tuple[list, list], node_idx: int = 0) -> List[LeafEntry]:
         node_queue = Queue(0)
         node_queue.put(self._storage.get_node(node_idx))
+        return_list = list()
 
         # loads from queue until entry on our position is found or not
         while not node_queue.empty():
@@ -104,19 +127,14 @@ class RTree:
             # if the node is not leaf, adds all child nodes that overlap our position to the queue
             if not this_node.is_leaf():
                 for entry in this_node.entries:
-                    is_in = True
-                    for x in range(entry.get_first_pos().count()):
-                        if ((entry.get_first_pos()[x] > search_pos[x])
-                                or (entry.get_second_pos()[x] < search_pos[x])):
-                            is_in = False
-                    if is_in:
+                    if overlaps(entry.get_bounding_box(), search_box):
                         node_queue.put(self._storage.get_node(this_node.get_child_idx()))
             # if the node is leaf, iterates through the entries and if found, returns the data on our desired position
             else:
                 for entry in this_node.entries:
-                    if entry.get_first_pos() == search_pos:
-                        return entry.get_data()
-        return -1
+                    if overlaps(entry.get_bounding_box(), search_box):
+                        return_list.append(entry)
+        return return_list
 
     def find_in_range(self):
         # TODO

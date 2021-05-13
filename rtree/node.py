@@ -21,7 +21,7 @@ class LeafEntry:
 
 
 class Node:
-    def __init__(self, is_leaf: bool, max_size: int, parent: Tuple[int, int]):
+    def __init__(self, is_leaf: bool, max_size: int, parent: Tuple[int, int] = 0):
         self._is_leaf = is_leaf
         self._max_size = max_size
         self._mem_idx = -1
@@ -44,7 +44,12 @@ class Node:
     
     def add_entry(self, entry) -> bool:
         if len(self.entries) == self._max_size:
+            self.entries.append(entry)
             return False
         else:
             self.entries.append(entry)
             return True
+
+    def set_entry(self, entry, idx: int) -> None:
+        self.entries[idx] = entry
+        pass
