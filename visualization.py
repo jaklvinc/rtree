@@ -117,7 +117,7 @@ if __name__ == "__main__":
     node1.entries = [LeafEntry([0, 0, 1], 0), LeafEntry([1, 0, 0], 1)]
     node2.entries = [LeafEntry([2, 1, 0], 2), LeafEntry([3, 2, 3], 3)]
 
-    tree._storage.add_node(root)
+    tree._storage.set_node(0, root)
     tree._storage.add_node(node1)
     tree._storage.add_node(node2)
 

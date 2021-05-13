@@ -51,7 +51,7 @@ class MemoryStorage(Storage):
         self._node_size = node_size
         self._split_type = split_type
 
-        self._data = []
+        self._data = [(True, [])]
 
     def get_dim(self) -> int:
         return self._dim
@@ -99,10 +99,11 @@ class DiskStorage(Storage):
 
     @classmethod
     def write_header(cls, filename: str, dimensions: int, node_size: int, split_type: RTreeSplitType):
-        data = bytearray(cls.HEADER_SIZE)
+        data = bytearray(cls.HEADER_SIZE + node_size)
         data[:4] = dimensions.to_bytes(4, byteorder='little', signed=False)
         data[4:12] = node_size.to_bytes(8, byteorder='little', signed=False)
-        data[12:] = split_type.value.to_bytes(1, byteorder='little', signed=False)
+        data[12:13] = split_type.value.to_bytes(1, byteorder='little', signed=False)
+        data[13:14] = True.to_bytes(1, byteorder='little', signed=False)
 
         with open(filename, 'wb') as file:
             file.write(data)
