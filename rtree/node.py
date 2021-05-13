@@ -24,20 +24,12 @@ class Node:
     def __init__(self, is_leaf: bool, max_size: int, parent: Tuple[int, int] = 0):
         self._is_leaf = is_leaf
         self._max_size = max_size
-        self._mem_idx = -1
         self._parent_entry = parent
 
         self.entries = list()
 
     def get_parent_entry(self) -> Tuple[int, int]:
         return self._parent_entry
-
-    def set_idx(self,  mem_idx: int) -> None:
-        self._mem_idx = mem_idx
-        pass
-    
-    def get_idx(self) -> int:
-        return self._mem_idx
     
     def is_leaf(self) -> bool:
         return self._is_leaf

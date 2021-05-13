@@ -3,6 +3,7 @@ from typing import List
 from collections import deque
 from rtree import RTree, RTreeSplitType
 from rtree.node import Node, NonLeafEntry, LeafEntry
+import random
 
 
 class Visualizer:
@@ -108,17 +109,28 @@ class Visualizer:
 
 
 if __name__ == "__main__":
-    tree = RTree.create_in_memory(3, 1024, RTreeSplitType.BRUTE_FORCE)
+    '''tree = RTree.create_in_memory(2, 1024, RTreeSplitType.BRUTE_FORCE)
 
     root = Node(False, 10, (0, 0))
     node1 = Node(True, 10, (0, 0))
     node2 = Node(True, 10, (0, 0))
-    root.entries = [NonLeafEntry([0, 0, 0], [1, 1, 1], 1), NonLeafEntry([2, 0, 0], [3, 2, 5], 2)]
-    node1.entries = [LeafEntry([0, 0, 1], 0), LeafEntry([1, 0, 0], 1)]
-    node2.entries = [LeafEntry([2, 1, 0], 2), LeafEntry([3, 2, 3], 3)]
+    root.entries = [NonLeafEntry([0, 0], [1, 1], 1), NonLeafEntry([2, 0], [3, 2], 2)]
+    node1.entries = [LeafEntry([0, 1], 0), LeafEntry([1, 0], 1)]
+    node2.entries = [LeafEntry([2, 1], 2), LeafEntry([3, 1], 3)]
 
     tree._storage.set_node(0, root)
     tree._storage.add_node(node1)
     tree._storage.add_node(node2)
+
+    Visualizer.visualize(tree)'''
+
+    tree = RTree.create_in_memory(2, 1024, RTreeSplitType.QUADRATIC)
+
+    number_of_entries = 100
+
+    first_coord = [random.randint(0, 100) for x in range(number_of_entries)]
+    second_coord = [random.randint(0, 100) for x in range(number_of_entries)]
+    for x, y, z in zip(first_coord, second_coord, range(number_of_entries)):
+        tree.insert([x, y], z)
 
     Visualizer.visualize(tree)

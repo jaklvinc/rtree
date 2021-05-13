@@ -46,7 +46,7 @@ def overlaps_distance(point: List[int], distance: int, box: Tuple[list, list]) -
     return False
 
 
-def pick_next(entries_left: Queue, first_bounding_rect: Tuple[list, list], second_bounding_rect: Tuple[list, list]) -> LeafEntry:
+def pick_next(entries_left: Queue, first_bounding_rect: Tuple[list, list], second_bounding_rect: Tuple[list, list]):
     max_dif_size = -1
     max_dif_entry = entries_left.get()
     for i in range(entries_left.qsize()):
@@ -61,6 +61,16 @@ def pick_next(entries_left: Queue, first_bounding_rect: Tuple[list, list], secon
             entries_left.put(max_dif_entry)
             max_dif_entry = check_entry
     return max_dif_entry
+
+
+def new_parent_entry(node: Node, idx: int) -> NonLeafEntry:
+    node_new_coords = node.entries[0].get_bounding_box()
+    for entry in node.entries[1:]:
+        node_new_coords = min_bounding_box(node_new_coords, entry.get_bounding_box())
+    node_new_entry = NonLeafEntry(node_new_coords[0],
+                                  node_new_coords[1],
+                                  idx)
+    return node_new_entry
 
 
 class RTree:
@@ -80,27 +90,45 @@ class RTree:
     def create_in_memory(cls, dimensions: int, node_size: int, split_type: RTreeSplitType):
         return cls(MemoryStorage(dimensions, node_size, split_type))
 
-    def _choose_leaf(self, node_idx: int, new_entry: LeafEntry) -> Node:
-        node_queue = Queue(0)
-        node_queue.put(node_idx)
-
-        while not node_queue.empty():
-            this_node_idx = node_queue.get()
-            node = self._storage.get_node(this_node_idx)
-            node.set_idx(this_node_idx)
-            if node.is_leaf():
+    def _choose_leaf(self, node_idx: int, new_entry: LeafEntry, split_type: RTreeSplitType):
+        node = self._storage.get_node(node_idx)
+        if node.is_leaf():
+            if node.add_entry(new_entry):
+                self._storage.set_node(node_idx, node)
                 return node
             else:
-                min_area = float('inf')
-                min_entry = NonLeafEntry
-                for entry in node.entries:
-                    new_bounding_box = min_bounding_box(entry.get_bounding_box(), new_entry.get_bounding_box())
-                    new_box_area = bounding_box_area(new_bounding_box)
+                return self._split_node(node, self._storage.get_split_type())
+        else:
+            min_area = float('inf')
+            min_entry = NonLeafEntry
+            min_entry_idx = -1
+            for idx, entry in zip(range(len(node.entries)), node.entries):
+                new_bounding_box = min_bounding_box(entry.get_bounding_box(), new_entry.get_bounding_box())
+                new_box_area = bounding_box_area(new_bounding_box)
 
-                    if new_box_area < min_area:
-                        min_area = new_box_area
-                        min_entry = entry
-                node_queue.put(min_entry.child_idx)
+                if new_box_area < min_area:
+                    min_entry_idx = idx
+                    min_area = new_box_area
+                    min_entry = entry
+            ret = self._choose_leaf(min_entry.child_idx, new_entry, split_type)
+            if type(ret) is tuple:
+                self._storage.set_node(min_entry.child_idx, ret[0])
+                first_node_new_entry = new_parent_entry(ret[0], min_entry.child_idx)
+                node.entries[min_entry_idx] = first_node_new_entry
+
+                second_node_idx = self._storage.add_node(ret[1])
+                second_node_new_entry = new_parent_entry(ret[1], second_node_idx)
+
+                if node.add_entry(second_node_new_entry):
+                    self._storage.set_node(node_idx, node)
+                    return node
+                else:
+                    return self._split_node(node, self._storage.get_split_type())
+            else:
+                node_new_entry = new_parent_entry(ret,min_entry.child_idx)
+                node.entries[min_entry_idx] = node_new_entry
+                return node
+        pass
 
     def _brute_force_split(self, split_this: Node):
         # TODO
@@ -108,7 +136,7 @@ class RTree:
 
     def _quadratic_split(self, split_this: Node) -> Tuple[Node, Node]:
         max_area = -1
-        max_area_pair = Tuple[LeafEntry, LeafEntry]
+        max_area_pair = tuple()
         for pair in combinations(split_this.entries, 2):
             bounding_box = min_bounding_box(pair[0].get_bounding_box(), pair[1].get_bounding_box())
             box_area = bounding_box_area(bounding_box)
@@ -121,12 +149,12 @@ class RTree:
             if entry != max_area_pair[0] and entry != max_area_pair[1]:
                 entries_left.put(entry)
 
-        first_node_bounding_rect = (max_area_pair[0].coord,max_area_pair[0].coord)
-        first_node = Node(is_leaf=True, max_size=self._storage.get_node_size())
+        first_node_bounding_rect = (max_area_pair[0].get_bounding_box()[0], max_area_pair[0].get_bounding_box()[1])
+        first_node = Node(is_leaf=split_this.is_leaf(), max_size=self._storage.get_node_size())
         first_node.add_entry(max_area_pair[0])
 
-        second_node_bounding_rect = (max_area_pair[1].coord, max_area_pair[1].coord)
-        second_node = Node(is_leaf=True, max_size=self._storage.get_node_size())
+        second_node_bounding_rect = (max_area_pair[1].get_bounding_box()[0], max_area_pair[1].get_bounding_box()[1])
+        second_node = Node(is_leaf=split_this.is_leaf(), max_size=self._storage.get_node_size())
         second_node.add_entry(max_area_pair[1])
 
         while not entries_left.empty():
@@ -157,27 +185,35 @@ class RTree:
                 second_node_bounding_rect = second_node_new_rect
 
         return first_node, second_node
-        # TODO
 
     def _linear_split(self, split_this: Node):
         pass
 
     def _split_node(self, split_this: Node, insert_node: RTreeSplitType):
         if insert_node == RTreeSplitType.BRUTE_FORCE:
-            self._brute_force_split(split_this)
+            return self._brute_force_split(split_this)
         elif insert_node == RTreeSplitType.QUADRATIC:
-            self._quadratic_split(split_this)
+            return self._quadratic_split(split_this)
         elif insert_node == RTreeSplitType.LINEAR:
-            self._linear_split(split_this)
+            return self._linear_split(split_this)
         pass
 
-    def insert(self, to_insert: LeafEntry):
-        insert_node = self._choose_leaf(0, to_insert)
-        if insert_node.add_entry(to_insert):
-            self._storage.set_node(insert_node.get_idx(), insert_node)
+    def insert(self, indices: List[int], data: int):
+        to_insert = LeafEntry(indices, data)
+        ret = self._choose_leaf(0, to_insert, self._storage.get_split_type())
+        new_root = Node(False, self._storage.get_node_size())
+        if type(ret) is tuple:
+            first_node_idx = self._storage.add_node(ret[0])
+            second_node_idx = self._storage.add_node(ret[1])
+            new_first_node = new_parent_entry(ret[0],first_node_idx)
+            new_second_node = new_parent_entry(ret[1],second_node_idx)
+            new_root.add_entry(new_first_node)
+            new_root.add_entry(new_second_node)
+            self._storage.set_node(0, new_root)
         else:
-            self._split_node(insert_node, self._storage.get_split_type())
-        # TODO
+            pass
+
+
 
     def _search_dist(self, point: List[int], dist: int) -> List[LeafEntry]:
         node_queue = Queue(0)
