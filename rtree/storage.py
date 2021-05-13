@@ -42,7 +42,7 @@ class Storage(ABC):
         return 8 * self.get_dim() * (1 if is_leaf else 2) + 8
 
     def _max_entries(self, is_leaf: bool) -> int:
-        return math.floor(self.get_node_size() / self._entry_size(is_leaf))
+        return math.floor((self.get_node_size() - 9) / self._entry_size(is_leaf))
 
 
 class MemoryStorage(Storage):
