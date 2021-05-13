@@ -23,6 +23,10 @@ def min_bounding_box(first: Tuple[list, list], second: Tuple[list, list]) -> Tup
     return first_coords, second_coords
 
 
+def two_box_area(first: Tuple[list, list], second: Tuple[list, list]) -> int:
+    return bounding_box_area(min_bounding_box(first, second))
+
+
 def overlaps(first: Tuple[list, list], second: Tuple[list, list]) -> bool:
     for x in range(len(first[0])):
         if first[0][x] > second[1][x] or first[1][x] < second[0][x]:
@@ -36,10 +40,27 @@ def overlaps_distance(point: List[int], distance: int, box: Tuple[list, list]) -
         bin_x = bin(x)[2:].zfill(len(box[0]))
         indices = [int(i) for i in bin_x]
         for idx, elem in zip(range(len(indices)), indices):
-            my_dist += abs(point[idx]-box[elem][idx])
+            my_dist += abs(point[idx] - box[elem][idx])
         if my_dist < distance:
             return True
     return False
+
+
+def pick_next(entries_left: Queue, first_bounding_rect: Tuple[list, list], second_bounding_rect: Tuple[list, list]) -> LeafEntry:
+    max_dif_size = -1
+    max_dif_entry = entries_left.get()
+    for i in range(entries_left.qsize()):
+        check_entry = entries_left.get()
+        first_dif = two_box_area(check_entry.get_bounding_box(), first_bounding_rect) - \
+            bounding_box_area(first_bounding_rect)
+        second_dif = two_box_area(check_entry.get_bounding_box(), second_bounding_rect) - \
+            bounding_box_area(second_bounding_rect)
+        dif = abs(first_dif - second_dif)
+        if dif > max_dif_size:
+            max_dif_size = dif
+            entries_left.put(max_dif_entry)
+            max_dif_entry = check_entry
+    return max_dif_entry
 
 
 class RTree:
@@ -85,26 +106,57 @@ class RTree:
         # TODO
         pass
 
-    def _quadratic_split(self, split_this: Node):
-        max_area = float(-1)
-        max_area_pair = 0
+    def _quadratic_split(self, split_this: Node) -> Tuple[Node, Node]:
+        max_area = -1
+        max_area_pair = Tuple[LeafEntry, LeafEntry]
         for pair in combinations(split_this.entries, 2):
-            bounding_box = min_bounding_box(pair[0], pair[1])
+            bounding_box = min_bounding_box(pair[0].get_bounding_box(), pair[1].get_bounding_box())
             box_area = bounding_box_area(bounding_box)
             if box_area > max_area:
                 max_area = box_area
-                max_area_pair = pair[0], pair[1]
+                max_area_pair = (pair[0], pair[1])
 
+        entries_left = Queue(0)
+        for entry in split_this.entries:
+            if entry != max_area_pair[0] and entry != max_area_pair[1]:
+                entries_left.put(entry)
 
-        old_parent = split_this.get_parent_entry()
-        if old_parent == 0:
-            new_parent_node = Node(is_leaf=False, max_size=self._storage.get_node_size())
-            self._storage.set_node(0, new_parent_node)
-            old_parent = (0, 0)
+        first_node_bounding_rect = (max_area_pair[0].coord,max_area_pair[0].coord)
         first_node = Node(is_leaf=True, max_size=self._storage.get_node_size())
         first_node.add_entry(max_area_pair[0])
+
+        second_node_bounding_rect = (max_area_pair[1].coord, max_area_pair[1].coord)
         second_node = Node(is_leaf=True, max_size=self._storage.get_node_size())
         second_node.add_entry(max_area_pair[1])
+
+        while not entries_left.empty():
+            add_now = pick_next(entries_left, first_node_bounding_rect, second_node_bounding_rect)
+            first_node_new_rect = min_bounding_box(add_now.get_bounding_box(), first_node_bounding_rect)
+            second_node_new_rect = min_bounding_box(add_now.get_bounding_box(), second_node_bounding_rect)
+
+            first_node_dif = bounding_box_area(first_node_new_rect)-bounding_box_area(first_node_bounding_rect)
+            second_node_dif = bounding_box_area(second_node_new_rect)-bounding_box_area(second_node_bounding_rect)
+
+            if first_node_dif < second_node_dif:
+                first_node.add_entry(add_now)
+                first_node_bounding_rect = first_node_new_rect
+            elif second_node_dif < first_node_dif:
+                second_node.add_entry(add_now)
+                second_node_bounding_rect = second_node_new_rect
+            elif bounding_box_area(first_node_bounding_rect) < bounding_box_area(second_node_bounding_rect):
+                first_node.add_entry(add_now)
+                first_node_bounding_rect = first_node_new_rect
+            elif bounding_box_area(second_node_bounding_rect) < bounding_box_area(first_node_bounding_rect):
+                second_node.add_entry(add_now)
+                second_node_bounding_rect = second_node_new_rect
+            elif len(first_node.entries) < len(second_node.entries):
+                first_node.add_entry(add_now)
+                first_node_bounding_rect = first_node_new_rect
+            else:
+                second_node.add_entry(add_now)
+                second_node_bounding_rect = second_node_new_rect
+
+        return first_node, second_node
         # TODO
 
     def _linear_split(self, split_this: Node):
@@ -174,8 +226,8 @@ class RTree:
         first_coord_distance = 0
         second_coord_distance = 0
         for x in range(len(total_bounding_box[0])):
-            first_coord_distance += abs(total_bounding_box[0][x]-search_around[x])
-            second_coord_distance += abs(total_bounding_box[1][x]-search_around[x])
+            first_coord_distance += abs(total_bounding_box[0][x] - search_around[x])
+            second_coord_distance += abs(total_bounding_box[1][x] - search_around[x])
         # max distance from point that is worth trying to cover
         max_distance = max(first_coord_distance, second_coord_distance)
 
@@ -183,13 +235,13 @@ class RTree:
         if len(output_list) <= number_of_entries:
             return output_list
 
-        min_distance=0
+        min_distance = 0
         closest_list = list
         list_init = False
         while len(output_list) != number_of_entries:
-            if abs(max_distance-min_distance) <= 1:
+            if abs(max_distance - min_distance) <= 1:
                 return closest_list[:number_of_entries]
-            new_distance = (min_distance+max_distance)/2
+            new_distance = (min_distance + max_distance) / 2
             output_list = self._search_dist(search_around, new_distance)
             if len(output_list) == number_of_entries:
                 return output_list
@@ -200,6 +252,3 @@ class RTree:
                 max_distance = new_distance
             if len(output_list) < number_of_entries:
                 min_distance = new_distance
-
-
-
