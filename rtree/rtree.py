@@ -1,7 +1,7 @@
 from itertools import combinations
 from queue import Queue
 from .split_type import RTreeSplitType
-from .storage import Storage
+from .storage import Storage, MemoryStorage, DiskStorage
 from .node import Node, LeafEntry, NonLeafEntry
 from typing import Tuple
 
@@ -26,6 +26,19 @@ def min_bounding_box(first: Tuple[list, list], second: Tuple[list, list]) -> Tup
 class RTree:
     def __init__(self, storage: Storage):
         self._storage = storage
+
+    @classmethod
+    def from_file(cls, filename: str):
+        return cls(DiskStorage(filename))
+
+    @classmethod
+    def create_in_file(cls, filename: str, dimensions: int, node_size: int, split_type: RTreeSplitType):
+        DiskStorage.write_header(filename, dimensions, node_size, split_type)
+        return cls.from_file(filename)
+
+    @classmethod
+    def create_in_memory(cls, dimensions: int, node_size: int, split_type: RTreeSplitType):
+        return cls(MemoryStorage(dimensions, node_size, split_type))
 
     def _choose_leaf(self, node_idx: int, new_entry: LeafEntry) -> Node:
         node_queue = Queue(0)
