@@ -117,7 +117,8 @@ class DiskStorage(Storage):
         return self._split_type
 
     def count(self) -> int:
-        return round((os.path.getsize(self._file.name) - self.HEADER_SIZE) / self._node_size)
+        self._file.seek(0, 2)
+        return round((self._file.tell() - self.HEADER_SIZE) / self._node_size)
 
     def get_node(self, index: int) -> Node:
         i = self._get(index, True)
