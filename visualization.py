@@ -122,11 +122,12 @@ if __name__ == "__main__":
     tree._storage.add_node(node1)
     tree._storage.add_node(node2)
 
-    Visualizer.visualize(tree)'''
+    Visualizer.visualize(tree)
 
+    '''
     tree = RTree.create_in_memory(2, 1024, RTreeSplitType.QUADRATIC)
 
-    number_of_entries = 100
+    number_of_entries = 1
 
     first_coord = [random.randint(0, 100) for x in range(number_of_entries)]
     second_coord = [random.randint(0, 100) for x in range(number_of_entries)]

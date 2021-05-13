@@ -60,6 +60,8 @@ def pick_next(entries_left: Queue, first_bounding_rect: Tuple[list, list], secon
             max_dif_size = dif
             entries_left.put(max_dif_entry)
             max_dif_entry = check_entry
+        else:
+            entries_left.put(check_entry)
     return max_dif_entry
 
 
