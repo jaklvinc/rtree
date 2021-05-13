@@ -4,7 +4,7 @@ from .split_type import RTreeSplitType
 from .node import Node
 
 
-class RTreeStorage(ABC):
+class Storage(ABC):
     @abstractmethod
     def get_dim(self) -> int:
         pass
@@ -36,7 +36,7 @@ class RTreeStorage(ABC):
         pass
 
 
-class MemoryRTreeStorage(RTreeStorage):
+class MemoryStorage(Storage):
     def __init__(self, dim: int, m: int, split_type: RTreeSplitType):
         self._dim = dim
         self._m = m
@@ -68,7 +68,7 @@ class MemoryRTreeStorage(RTreeStorage):
 
 
 # WIP
-class DiskRTreeStorage(RTreeStorage):
+class DiskStorage(Storage):
     def __init__(self, filename: str):
         pass
 

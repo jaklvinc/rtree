@@ -2,12 +2,12 @@ import itertools
 from itertools import combinations
 from queue import Queue
 from .split_type import RTreeSplitType
-from .storage import RTreeStorage
+from .storage import Storage
 from .node import Entry, Node
 
 
 class RTree:
-    def __init__(self, storage: RTreeStorage):
+    def __init__(self, storage: Storage):
         self._storage = storage
 
     def _count_area( first : Entry , second : Entry ) -> int:
