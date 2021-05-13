@@ -171,7 +171,7 @@ class DiskStorage(Storage):
                 i += 8
 
         if len(data) > self.get_node_size():
-            raise BufferError
+            raise AttributeError
 
         self._file.seek(self.HEADER_SIZE + index * self._node_size)
         self._file.write(data)
