@@ -30,6 +30,18 @@ def overlaps(first: Tuple[list, list], second: Tuple[list, list]) -> bool:
     return True
 
 
+def overlaps_distance(point: List[int], distance: int, box: Tuple[list, list]) -> bool:
+    my_dist = 0
+    for x in range(pow(2, len(box[0]))):
+        bin_x = bin(x)[2:].zfill(len(box[0]))
+        indices = [int(i) for i in bin_x]
+        for idx, elem in zip(range(len(indices)), indices):
+            my_dist += abs(point[idx]-box[elem][idx])
+        if my_dist < distance:
+            return True
+    return False
+
+
 class RTree:
     def __init__(self, storage: Storage):
         self._storage = storage
@@ -115,9 +127,26 @@ class RTree:
             self._split_node(insert_node, self._storage.get_split_type())
         # TODO
 
-    def search_range(self, search_box: Tuple[list, list], node_idx: int = 0) -> List[LeafEntry]:
+    def _search_dist(self, point: List[int], dist: int) -> List[LeafEntry]:
         node_queue = Queue(0)
-        node_queue.put(self._storage.get_node(node_idx))
+        node_queue.put(self._storage.get_node(0))
+        return_list = list()
+
+        while not node_queue.empty():
+            this_node = node_queue.get()
+            if not this_node.is_leaf():
+                for entry in this_node.entries:
+                    if overlaps_distance(point, dist, entry.get_bounding_box()):
+                        node_queue.put(self._storage.get_node(this_node.get_child_idx()))
+            else:
+                for entry in this_node.entries:
+                    if overlaps_distance(point, dist, entry.get_bounding_box()):
+                        return_list.append(entry)
+        return return_list
+
+    def search_range(self, search_box: Tuple[list, list]) -> List[LeafEntry]:
+        node_queue = Queue(0)
+        node_queue.put(self._storage.get_node(0))
         return_list = list()
 
         # loads from queue until entry on our position is found or not
@@ -136,6 +165,41 @@ class RTree:
                         return_list.append(entry)
         return return_list
 
-    def find_in_range(self):
-        # TODO
-        pass
+    def search_n_around(self, search_around: List[int], number_of_entries: int) -> List[LeafEntry]:
+        root_node = self._storage.get_node(0)
+        # bounding box of all entries in the tree
+        total_bounding_box = root_node.entries[0].get_bounding_box()
+        for x in range(1, len(root_node.entries)):
+            total_bounding_box = min_bounding_box(total_bounding_box, root_node.entries[x].get_bounding_box())
+        first_coord_distance = 0
+        second_coord_distance = 0
+        for x in range(len(total_bounding_box[0])):
+            first_coord_distance += abs(total_bounding_box[0][x]-search_around[x])
+            second_coord_distance += abs(total_bounding_box[1][x]-search_around[x])
+        # max distance from point that is worth trying to cover
+        max_distance = max(first_coord_distance, second_coord_distance)
+
+        output_list = self._search_dist(search_around, max_distance)
+        if len(output_list) <= number_of_entries:
+            return output_list
+
+        min_distance=0
+        closest_list = list
+        list_init = False
+        while len(output_list) != number_of_entries:
+            if abs(max_distance-min_distance) <= 1:
+                return closest_list[:number_of_entries]
+            new_distance = (min_distance+max_distance)/2
+            output_list = self._search_dist(search_around, new_distance)
+            if len(output_list) == number_of_entries:
+                return output_list
+            if len(output_list) > number_of_entries:
+                if len(output_list) < len(closest_list) or not list_init:
+                    list_init = True
+                    closest_list = output_list
+                max_distance = new_distance
+            if len(output_list) < number_of_entries:
+                min_distance = new_distance
+
+
+
