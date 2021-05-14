@@ -67,7 +67,7 @@ class MemoryStorage(Storage):
 
     def get_node(self, index: int) -> Node:
         is_leaf = self._data[index][0]
-        node = Node(is_leaf, self._max_entries(is_leaf), (0, 0))
+        node = Node(is_leaf, self._max_entries(is_leaf))
         node.entries = copy.deepcopy(self._data[index][1])
         return node
 
@@ -124,7 +124,7 @@ class DiskStorage(Storage):
     def get_node(self, index: int) -> Node:
         i = self._get(index, True)
         is_leaf = self._cache[i][2]
-        node = Node(is_leaf, self._max_entries(is_leaf), (0, 0))
+        node = Node(is_leaf, self._max_entries(is_leaf))
         node.entries = copy.deepcopy(self._cache[i][3])
         return node
 
@@ -187,7 +187,7 @@ class DiskStorage(Storage):
         i = 9
         entries = []
 
-        for i in range(n):
+        for _ in range(n):
             if is_leaf:
                 i, coord = self._deserialize_coord(data, i)
                 data_point = int.from_bytes(data[i:i+8], byteorder='little', signed=False)
