@@ -1,6 +1,7 @@
 from typing import List, Tuple
 import math
 import random
+import unittest
 from rtree import RTree, RTreeSplitType
 from rtree.storage import Storage
 from visualization import Visualizer
@@ -54,13 +55,148 @@ class TestRTree(RTree):
         return math.dist(p, q)
 
 
+class TestCreateInsertSearch(unittest.TestCase):
+    def test_create(self):
+        self._test_create(1, 128, RTreeSplitType.BRUTE_FORCE)
+        self._test_create(2, 512, RTreeSplitType.QUADRATIC)
+        self._test_create(3, 1024, RTreeSplitType.LINEAR)
+        self._test_create(4, 1024, RTreeSplitType.LINEAR)
+
+    def test_split(self):
+        tree = TestRTree.create_in_memory(2, 128, RTreeSplitType.LINEAR)
+        max_entries = tree._storage._max_entries(False)
+
+        for i in range(max_entries + 1):
+            tree.insert(self._random_point(2), i)
+            self.assertEqual(tree._storage.count(), 1 if i <= max_entries else 3)
+
+    def test_1d_128_brute_force_200_range(self):
+        self._test_range(1, 128, RTreeSplitType.BRUTE_FORCE, 200)
+
+    def test_1d_128_brute_force_200_knn_smaller(self):
+        self._test_knn(1, 128, RTreeSplitType.BRUTE_FORCE, 200, 50)
+
+    def test_1d_128_brute_force_200_knn_same(self):
+        self._test_knn(1, 128, RTreeSplitType.BRUTE_FORCE, 200, 200)
+
+    def test_1d_128_brute_force_1000_knn_greater(self):
+        self._test_knn(1, 128, RTreeSplitType.BRUTE_FORCE, 200, 250)
+
+    def test_2d_128_brute_force_100_range(self):
+        self._test_range(2, 128, RTreeSplitType.BRUTE_FORCE, 100)
+
+    def test_2d_128_brute_force_100_knn_smaller(self):
+        self._test_knn(2, 128, RTreeSplitType.BRUTE_FORCE, 100, 20)
+
+    def test_2d_128_brute_force_100_knn_same(self):
+        self._test_knn(2, 128, RTreeSplitType.BRUTE_FORCE, 100, 100)
+
+    def test_2d_128_brute_force_100_knn_greater(self):
+        self._test_knn(2, 128, RTreeSplitType.BRUTE_FORCE, 100, 120)
+
+    def test_2d_128_quadratic_100_range(self):
+        self._test_range(2, 128, RTreeSplitType.QUADRATIC, 100)
+
+    def test_2d_128_quadratic_100_knn_smaller(self):
+        self._test_knn(2, 128, RTreeSplitType.QUADRATIC, 100, 20)
+
+    def test_2d_128_quadratic_100_knn_same(self):
+        self._test_knn(2, 128, RTreeSplitType.QUADRATIC, 100, 100)
+
+    def test_2d_128_quadratic_100_knn_greater(self):
+        self._test_knn(2, 128, RTreeSplitType.QUADRATIC, 100, 120)
+
+    def test_2d_128_linear_100_range(self):
+        self._test_range(2, 128, RTreeSplitType.LINEAR, 100)
+
+    def test_2d_128_linear_100_knn_smaller(self):
+        self._test_knn(2, 128, RTreeSplitType.LINEAR, 100, 20)
+
+    def test_2d_128_linear_100_knn_same(self):
+        self._test_knn(2, 128, RTreeSplitType.LINEAR, 100, 100)
+
+    def test_2d_128_linear_100_knn_greater(self):
+        self._test_knn(2, 128, RTreeSplitType.LINEAR, 100, 120)
+
+    def test_2d_512_quadratic_1000_range(self):
+        self._test_range(2, 512, RTreeSplitType.QUADRATIC, 1000)
+
+    def test_2d_512_quadratic_1000_knn(self):
+        self._test_knn(2, 512, RTreeSplitType.QUADRATIC, 1000, 50)
+
+    def test_3d_512_quadratic_1000_range(self):
+        self._test_range(3, 512, RTreeSplitType.QUADRATIC, 1000)
+
+    def test_3d_512_quadratic_1000_knn(self):
+        self._test_knn(3, 512, RTreeSplitType.QUADRATIC, 1000, 50)
+
+    def test_4d_512_linear_1000_range(self):
+        self._test_range(4, 512, RTreeSplitType.LINEAR, 1000)
+
+    def test_4d_512_linear_1000_knn(self):
+        self._test_knn(4, 512, RTreeSplitType.LINEAR, 1000, 50)
+
+    def _test_create(self, dim: int, node_size: int, split_type: RTreeSplitType):
+        tree = TestRTree.create_in_memory(dim, node_size, split_type)
+        self.assertEqual(tree.get_dimensions(), dim)
+        self.assertEqual(tree._storage.get_node_size(), node_size)
+        self.assertEqual(tree._storage.get_split_type(), split_type)
+        self.assertEqual(tree._storage.count(), 1)
+
+    def _test_range(self, dim: int, node_size: int, split_type: RTreeSplitType, n: int):
+        tree = self._create_rtree_and_insert(dim, node_size, split_type, n)
+
+        box = self._random_box(dim)
+
+        seq_res = tree.seq_search_range(box)
+        res = tree.search_range(box)
+
+        self._assert_range(seq_res, res)
+
+    def _test_knn(self, dim: int, node_size: int, split_type: RTreeSplitType, n: int, k: int):
+        tree = self._create_rtree_and_insert(dim, node_size, split_type, n)
+
+        point = self._random_point(dim)
+
+        seq_res = tree.seq_search_knn(point, k)
+        res = tree.search_knn(point, k)
+
+        self._assert_knn(seq_res, res, min(k, n))
+
+    def _assert_range(self, seq_res: list, res: list):
+        self.assertEqual(len(seq_res), len(res))
+
+        for x in seq_res:
+            self.assertTrue(x in res)
+
+    def _assert_knn(self, seq_res: list, res: list, k: int):
+        self.assertEqual(len(seq_res), k)
+
+        for x in res:
+            self.assertTrue(x in seq_res)
+
+    def _random_point(self, dim: int) -> List[int]:
+        return [random.randint(-1000, 1000) for _ in range(dim)]
+
+    def _random_box(self, dim: int) -> Tuple[List[int], List[int]]:
+        a = self._random_point(dim)
+        b = self._random_point(dim)
+
+        p = []
+        q = []
+
+        for i in range(dim):
+            p.append(min(a[i], b[i]))
+            q.append(max(a[i], b[i]))
+
+        return p, q
+
+    def _create_rtree_and_insert(self, dim: int, node_size: int, split_type: RTreeSplitType, n: int) -> TestRTree:
+        tree = TestRTree.create_in_memory(dim, node_size, split_type)
+        for i in range(n):
+            tree.insert(self._random_point(dim), i)
+        return tree
+
+
 if __name__ == "__main__":
-    tree = TestRTree.create_in_memory(2, 128, RTreeSplitType.QUADRATIC)
-
-    for i in range(100):
-        tree.insert([random.randint(-100, 100), random.randint(-100, 100)], i)
-
-    Visualizer.visualize(tree)
-
-    print(tree.seq_search_range(([-10, -10], [11, 5])))
-    print(tree.seq_search_knn([0, 0], 5))
+    unittest.main()

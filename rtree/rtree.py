@@ -380,7 +380,7 @@ class RTree:
             ret_list.append((entry.coord, entry.data_point))
         return ret_list
 
-    def search_n_around(self, search_around: List[int], number_of_entries: int) -> List[LeafEntry]:
+    def search_knn(self, search_around: List[int], number_of_entries: int) -> List[LeafEntry]:
         root_node = self._storage.get_node(0)
         # bounding box of all entries in the tree
         total_bounding_box = root_node.entries[0].get_bounding_box()
