@@ -4,7 +4,6 @@ import random
 import unittest
 from rtree import RTree, RTreeSplitType
 from rtree.storage import Storage
-from visualization import Visualizer
 
 
 class TestRTree(RTree):
@@ -63,11 +62,13 @@ class TestCreateInsertSearch(unittest.TestCase):
         self._test_create(4, 1024, RTreeSplitType.LINEAR)
 
     def test_split(self):
-        tree = TestRTree.create_in_memory(2, 128, RTreeSplitType.LINEAR)
+        dim = random.randint(1, 5)
+        node_size = random.randint(128, 4096)
+        tree = TestRTree.create_in_memory(dim, node_size, RTreeSplitType.LINEAR)
         max_entries = tree._storage._max_entries(False)
 
         for i in range(max_entries + 1):
-            tree.insert(self._random_point(2), i)
+            tree.insert(self._random_point(dim), i)
             self.assertEqual(tree._storage.count(), 1 if i <= max_entries else 3)
 
     def test_1d_128_brute_force_200_range(self):
