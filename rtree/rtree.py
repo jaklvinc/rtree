@@ -101,24 +101,28 @@ class RTree:
         if node.is_leaf():
             if node.add_entry(new_entry):
                 self._storage.set_node(node_idx, node)
-                return node
+                return node_idx, node
             else:
-                return self._split_node(node, self._storage.get_split_type())
+                return node_idx, self._split_node(node)
         else:
-            min_area = float('inf')
-            min_entry = NonLeafEntry
+            min_diff = float('inf')
+            min_entry = None
             min_entry_idx = -1
             for idx, entry in enumerate(node.entries):
                 new_bounding_box = min_bounding_box(entry.get_bounding_box(), new_entry.get_bounding_box())
-                new_box_area = bounding_box_area(new_bounding_box)-bounding_box_area(entry.get_bounding_box())
+                new_box_diff = bounding_box_area(new_bounding_box)-bounding_box_area(entry.get_bounding_box())
 
-                if new_box_area < min_area:
-                    # TODO RESOLVE TIES
-                    # TODO MULTIWAY
+                if new_box_diff < min_diff:
                     min_entry_idx = idx
-                    min_area = new_box_area
+                    min_diff = new_box_diff
                     min_entry = entry
-            ret = self._choose_leaf(min_entry.child_idx, new_entry)
+                elif new_box_diff == min_diff:
+                    if bounding_box_area(entry.get_bounding_box()) < bounding_box_area(min_entry.get_bounding_box()):
+                        min_entry_idx = idx
+                        min_diff = new_box_diff
+                        min_entry = entry
+
+            idx, ret = self._choose_leaf(min_entry.child_idx, new_entry)
             if type(ret) is tuple:
                 self._storage.set_node(min_entry.child_idx, ret[0])
                 first_node_new_entry = new_parent_entry(ret[0], min_entry.child_idx)
@@ -129,18 +133,18 @@ class RTree:
 
                 if node.add_entry(second_node_new_entry):
                     self._storage.set_node(node_idx, node)
-                    return node
+                    return node_idx, node
                 else:
-                    return self._split_node(node, self._storage.get_split_type())
+                    return node_idx, self._split_node(node)
             else:
                 node_new_entry = new_parent_entry(ret, min_entry.child_idx)
                 node.entries[min_entry_idx] = node_new_entry
                 self._storage.set_node(node_idx, node)
-                return node
+                return node_idx, node
         pass
 
-    def _brute_force_split(self, split_this: Node):
-        # TODO
+    def _linear_split(self, split_this: Node):
+        # TODO BRUTE FORCE SPLIT
         pass
 
     def _quadratic_split(self, split_this: Node) -> Tuple[Node, Node]:
@@ -195,11 +199,65 @@ class RTree:
 
         return first_node, second_node
 
-    def _linear_split(self, split_this: Node):
-        pass
+    def _all_splits(self, indices: List[int], x: int, to_print, splits: List[List[int]]):
+        while x != len(indices):
+            to_append = [int(item) for item in to_print]
+            to_append.append(x)
+            if len(to_append) != len(indices):
+                splits.append(to_append)
+            self._all_splits(indices, x + 1, to_print + str(x), splits)
+            x += 1
+        return
 
-    def _split_node(self, split_this: Node, insert_node: RTreeSplitType):
-        # TODO SPLIT TYPE
+    def _brute_force_split(self, split_this: Node):
+
+        split_indices = [x for x, _ in enumerate(split_this.entries)]
+        splits = list()
+        self._all_splits(split_indices, 0, '', splits)
+        min_area_combined = float('inf')
+        min_first_entries = None
+        min_second_entries = None
+        for split in splits:
+            include_indices = [0] * len(split_this.entries)
+            first_entries = list()
+            second_entries = list()
+            for index in split:
+                include_indices[index] = 1
+            for index, zero_one in enumerate(include_indices):
+                if zero_one == 0:
+                    first_entries.append(split_this.entries[index])
+                else:
+                    second_entries.append(split_this.entries[index])
+
+            first_bounding_box = first_entries[0].get_bounding_box()
+            for entry in first_entries:
+                first_bounding_box = min_bounding_box(first_bounding_box, entry.get_bounding_box())
+            first_area = bounding_box_area(first_bounding_box)
+
+            second_bounding_box = second_entries[0].get_bounding_box()
+            for entry in second_entries:
+                second_bounding_box = min_bounding_box(second_bounding_box, entry.get_bounding_box())
+            second_area = bounding_box_area(second_bounding_box)
+
+            total_area = first_area+second_area
+            if total_area < min_area_combined:
+                min_first_entries = first_entries
+                min_second_entries = second_entries
+                min_area_combined = total_area
+
+        first_node = Node(is_leaf=split_this.is_leaf(), max_size=self._storage.get_node_size())
+        second_node = Node(is_leaf=split_this.is_leaf(), max_size=self._storage.get_node_size())
+
+        for entry in min_first_entries:
+            first_node.add_entry(entry)
+
+        for entry in min_second_entries:
+            second_node.add_entry(entry)
+
+        return first_node, second_node
+
+    def _split_node(self, split_this: Node):
+        insert_node = self._storage.get_split_type()
         if insert_node == RTreeSplitType.BRUTE_FORCE:
             return self._brute_force_split(split_this)
         elif insert_node == RTreeSplitType.QUADRATIC:
@@ -210,10 +268,9 @@ class RTree:
 
     def insert(self, indices: List[int], data: int):
         to_insert = LeafEntry(indices, data)
-        ret = self._choose_leaf(0, to_insert)
+        idx, ret = self._choose_leaf(0, to_insert)
         if type(ret) is tuple:
             new_root = Node(False, self._storage.get_node_size())
-            # TODO UPRAVIT RETURN TAK ABY VRACEL IDX JEDNOHO NODU
             first_node_idx = self._storage.add_node(ret[0])
             second_node_idx = self._storage.add_node(ret[1])
             new_first_node = new_parent_entry(ret[0], first_node_idx)
@@ -233,7 +290,7 @@ class RTree:
             if not this_node.is_leaf():
                 for entry in this_node.entries:
                     if overlaps_distance(point, dist, entry.get_bounding_box()):
-                        node_queue.append(self._storage.get_node(this_node.get_child_idx()))
+                        node_queue.append(self._storage.get_node(entry.child_idx))
             else:
                 for entry in this_node.entries:
                     if overlaps_distance(point, dist, entry.get_bounding_box()):
@@ -253,7 +310,7 @@ class RTree:
             if not this_node.is_leaf():
                 for entry in this_node.entries:
                     if overlaps(entry.get_bounding_box(), search_box):
-                        node_queue.append(self._storage.get_node(this_node.get_child_idx()))
+                        node_queue.append(self._storage.get_node(entry.child_idx))
             # if the node is leaf, iterates through the entries and if found, returns the data on our desired position
             else:
                 for entry in this_node.entries:
@@ -284,13 +341,13 @@ class RTree:
         list_init = False
         while len(output_list) != number_of_entries:
             if abs(max_distance - min_distance) <= 1:
-                return closest_list[:number_of_entries]
+                return closest_list # TODO
             new_distance = (min_distance + max_distance) / 2
             output_list = self._search_dist(search_around, new_distance)
             if len(output_list) == number_of_entries:
                 return output_list
             if len(output_list) > number_of_entries:
-                if len(output_list) < len(closest_list) or not list_init:
+                if not list_init or len(output_list) < len(closest_list):
                     list_init = True
                     closest_list = output_list
                 max_distance = new_distance
