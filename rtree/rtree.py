@@ -356,10 +356,10 @@ class RTree:
                         return_list.append(entry)
         return return_list
 
-    def search_range(self, search_box: Tuple[list, list]) -> List[LeafEntry]:
+    def search_range(self, search_box: Tuple[list, list]) -> List[Tuple[List, int]]:
         node_queue = deque()
         node_queue.append(self._storage.get_node(0))
-        return_list = list()
+        return_list = set()
 
         # loads from queue until entry on our position is found or not
         while node_queue:
@@ -374,8 +374,11 @@ class RTree:
             else:
                 for entry in this_node.entries:
                     if overlaps(entry.get_bounding_box(), search_box):
-                        return_list.append(entry)
-        return return_list
+                        return_list.add(entry)
+        ret_list = list()
+        for entry in return_list:
+            ret_list.append((entry.coord, entry.data_point))
+        return ret_list
 
     def search_n_around(self, search_around: List[int], number_of_entries: int) -> List[LeafEntry]:
         root_node = self._storage.get_node(0)

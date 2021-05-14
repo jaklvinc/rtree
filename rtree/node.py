@@ -35,6 +35,9 @@ class LeafEntry:
     def __ne__(self, other):
         return not self.__eq__(other)
 
+    def __hash__(self):
+        return hash(self.data_point)
+
 
 class Node:
     def __init__(self, is_leaf: bool, max_size: int):
