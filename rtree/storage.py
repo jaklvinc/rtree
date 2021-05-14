@@ -51,6 +51,9 @@ class MemoryStorage(Storage):
         self._node_size = node_size
         self._split_type = split_type
 
+        if self._max_entries(False) < 2:
+            raise ValueError
+
         self._data = [(True, [])]
 
     def get_dim(self) -> int:
@@ -79,7 +82,6 @@ class MemoryStorage(Storage):
         return len(self._data) - 1
 
 
-# WIP
 class DiskStorage(Storage):
     HEADER_SIZE = 13
     CACHE_SIZE = 1024
@@ -99,6 +101,9 @@ class DiskStorage(Storage):
 
     @classmethod
     def write_header(cls, filename: str, dimensions: int, node_size: int, split_type: RTreeSplitType):
+        if math.floor((node_size - 9) / (16 * dimensions + 8)) < 2:
+            raise ValueError
+
         data = bytearray(cls.HEADER_SIZE + node_size)
         data[:4] = dimensions.to_bytes(4, byteorder='little', signed=False)
         data[4:12] = node_size.to_bytes(8, byteorder='little', signed=False)
@@ -172,7 +177,7 @@ class DiskStorage(Storage):
                 i += 8
 
         if len(data) > self.get_node_size():
-            raise AttributeError
+            raise ValueError
 
         self._file.seek(self.HEADER_SIZE + index * self._node_size)
         self._file.write(data)
@@ -182,7 +187,6 @@ class DiskStorage(Storage):
         data = self._file.read(self._node_size)
         is_leaf = bool.from_bytes(data[:1], byteorder='little', signed=False)
         n = int.from_bytes(data[1:9], byteorder='little', signed=False)
-        step = self._entry_size(is_leaf)
 
         i = 9
         entries = []
