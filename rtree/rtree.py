@@ -140,9 +140,90 @@ class RTree:
                 return node_idx, node
         pass
 
+    @staticmethod
+    def _left_to_enter(split_this: Node, first_entry, second_entry):
+        entries_left = deque()
+        for entry in split_this.entries:
+            if entry != first_entry and entry != second_entry:
+                entries_left.append(entry)
+        return entries_left
+
+    @staticmethod
+    def _add_accordingly(add_now, first_node_bounding_rect, second_node_bounding_rect, first_node, second_node):
+        first_node_new_rect = min_bounding_box(add_now.get_bounding_box(), first_node_bounding_rect)
+        second_node_new_rect = min_bounding_box(add_now.get_bounding_box(), second_node_bounding_rect)
+
+        first_node_dif = bounding_box_area(first_node_new_rect) - bounding_box_area(first_node_bounding_rect)
+        second_node_dif = bounding_box_area(second_node_new_rect) - bounding_box_area(second_node_bounding_rect)
+
+        if first_node_dif < second_node_dif:
+            first_node.add_entry(add_now)
+            first_node_bounding_rect = first_node_new_rect
+        elif second_node_dif < first_node_dif:
+            second_node.add_entry(add_now)
+            second_node_bounding_rect = second_node_new_rect
+        elif bounding_box_area(first_node_bounding_rect) < bounding_box_area(second_node_bounding_rect):
+            first_node.add_entry(add_now)
+            first_node_bounding_rect = first_node_new_rect
+        elif bounding_box_area(second_node_bounding_rect) < bounding_box_area(first_node_bounding_rect):
+            second_node.add_entry(add_now)
+            second_node_bounding_rect = second_node_new_rect
+        elif len(first_node.entries) < len(second_node.entries):
+            first_node.add_entry(add_now)
+            first_node_bounding_rect = first_node_new_rect
+        else:
+            second_node.add_entry(add_now)
+            second_node_bounding_rect = second_node_new_rect
+        return first_node_bounding_rect, second_node_bounding_rect
+
     def _linear_split(self, split_this: Node):
-        # TODO BRUTE FORCE SPLIT
-        pass
+        root_node = self._storage.get_node(0)
+        # bounding box of all entries in the tree
+        total_bounding_box = root_node.entries[0].get_bounding_box()
+        for x, _ in enumerate(root_node.entries):
+            total_bounding_box = min_bounding_box(total_bounding_box, root_node.entries[x].get_bounding_box())
+
+        max_normalized_separation = float("-inf")
+        first_entry = None
+        second_entry = None
+        for dim, _ in enumerate(split_this.entries[0].get_bounding_box()[0]):
+            w = abs(total_bounding_box[1][dim]-total_bounding_box[0][dim])
+            lowest_high_side = float('inf')
+            lowes_high_entry = None
+            highest_low_side = float('-inf')
+            highest_low_entry = None
+            for entry in split_this.entries:
+                entry_box = entry.get_bounding_box()
+                if entry_box[0][dim] > highest_low_side:
+                    highest_low_side = entry_box[0][dim]
+                    highest_low_entry = entry
+                if entry_box[1][dim] < lowest_high_side:
+                    lowest_high_side = entry_box[1][dim]
+                    lowes_high_entry = entry
+            separation = abs(lowest_high_side-highest_low_side)
+            normalized_separation= separation/w
+            if normalized_separation > max_normalized_separation:
+                max_normalized_separation = normalized_separation
+                first_entry = highest_low_entry
+                second_entry = lowes_high_entry
+        entries_left = self._left_to_enter(split_this, first_entry, second_entry)
+
+        first_node_bounding_rect = (first_entry.get_bounding_box()[0], first_entry.get_bounding_box()[1])
+        first_node = Node(is_leaf=split_this.is_leaf(), max_size=self._storage.get_node_size())
+        first_node.add_entry(first_entry)
+
+        second_node_bounding_rect = (second_entry.get_bounding_box()[0], second_entry.get_bounding_box()[1])
+        second_node = Node(is_leaf=split_this.is_leaf(), max_size=self._storage.get_node_size())
+        second_node.add_entry(second_entry)
+
+        while entries_left:
+            to_add = entries_left.popleft()
+            first_node_bounding_rect, second_node_bounding_rect = self._add_accordingly(to_add,
+                                                                                        first_node_bounding_rect,
+                                                                                        second_node_bounding_rect,
+                                                                                        first_node,
+                                                                                        second_node)
+        return first_node, second_node
 
     def _quadratic_split(self, split_this: Node) -> Tuple[Node, Node]:
         max_area = -1
@@ -154,10 +235,7 @@ class RTree:
                 max_area = box_area
                 max_area_pair = (pair[0], pair[1])
 
-        entries_left = deque()
-        for entry in split_this.entries:
-            if entry != max_area_pair[0] and entry != max_area_pair[1]:
-                entries_left.append(entry)
+        entries_left = self._left_to_enter(split_this, [0], max_area_pair[1])
 
         first_node_bounding_rect = (max_area_pair[0].get_bounding_box()[0], max_area_pair[0].get_bounding_box()[1])
         first_node = Node(is_leaf=split_this.is_leaf(), max_size=self._storage.get_node_size())
@@ -169,30 +247,11 @@ class RTree:
 
         while entries_left:
             add_now = pick_next(entries_left, first_node_bounding_rect, second_node_bounding_rect)
-            first_node_new_rect = min_bounding_box(add_now.get_bounding_box(), first_node_bounding_rect)
-            second_node_new_rect = min_bounding_box(add_now.get_bounding_box(), second_node_bounding_rect)
-
-            first_node_dif = bounding_box_area(first_node_new_rect)-bounding_box_area(first_node_bounding_rect)
-            second_node_dif = bounding_box_area(second_node_new_rect)-bounding_box_area(second_node_bounding_rect)
-
-            if first_node_dif < second_node_dif:
-                first_node.add_entry(add_now)
-                first_node_bounding_rect = first_node_new_rect
-            elif second_node_dif < first_node_dif:
-                second_node.add_entry(add_now)
-                second_node_bounding_rect = second_node_new_rect
-            elif bounding_box_area(first_node_bounding_rect) < bounding_box_area(second_node_bounding_rect):
-                first_node.add_entry(add_now)
-                first_node_bounding_rect = first_node_new_rect
-            elif bounding_box_area(second_node_bounding_rect) < bounding_box_area(first_node_bounding_rect):
-                second_node.add_entry(add_now)
-                second_node_bounding_rect = second_node_new_rect
-            elif len(first_node.entries) < len(second_node.entries):
-                first_node.add_entry(add_now)
-                first_node_bounding_rect = first_node_new_rect
-            else:
-                second_node.add_entry(add_now)
-                second_node_bounding_rect = second_node_new_rect
+            first_node_bounding_rect, second_node_bounding_rect = self._add_accordingly(add_now,
+                                                                                        first_node_bounding_rect,
+                                                                                        second_node_bounding_rect,
+                                                                                        first_node,
+                                                                                        second_node)
 
         return first_node, second_node
 
