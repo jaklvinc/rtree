@@ -1,5 +1,5 @@
 from itertools import combinations
-from queue import Queue
+from collections import deque
 from .split_type import RTreeSplitType
 from .storage import Storage, MemoryStorage, DiskStorage
 from .node import Node, LeafEntry, NonLeafEntry
@@ -8,7 +8,7 @@ from typing import Tuple, List
 
 def bounding_box_area(box: Tuple[list, list]) -> int:
     area = 1
-    dimensions = (abs(x - y) + 1 for x in box[0] for y in box[1])
+    dimensions = (abs(x - y) + 1 for x, y in zip(box[0], box[1]))
     for dimension in dimensions:
         area *= dimension
     return area
@@ -17,7 +17,7 @@ def bounding_box_area(box: Tuple[list, list]) -> int:
 def min_bounding_box(first: Tuple[list, list], second: Tuple[list, list]) -> Tuple[list, list]:
     first_coords = list()
     second_coords = list()
-    for x in range(len(first[0])):
+    for x, _ in enumerate(first[0]):
         first_coords.append(min(first[0][x], second[0][x]))
         second_coords.append(max(first[1][x], second[1][x]))
     return first_coords, second_coords
@@ -46,11 +46,11 @@ def overlaps_distance(point: List[int], distance: int, box: Tuple[list, list]) -
     return False
 
 
-def pick_next(entries_left: Queue, first_bounding_rect: Tuple[list, list], second_bounding_rect: Tuple[list, list]):
+def pick_next(entries_left: deque, first_bounding_rect: Tuple[list, list], second_bounding_rect: Tuple[list, list]):
     max_dif_size = -1
-    max_dif_entry = entries_left.get()
-    for i in range(entries_left.qsize()):
-        check_entry = entries_left.get()
+    max_dif_entry = entries_left.popleft()
+    for i in range(len(entries_left)):
+        check_entry = entries_left.popleft()
         first_dif = two_box_area(check_entry.get_bounding_box(), first_bounding_rect) - \
             bounding_box_area(first_bounding_rect)
         second_dif = two_box_area(check_entry.get_bounding_box(), second_bounding_rect) - \
@@ -58,10 +58,10 @@ def pick_next(entries_left: Queue, first_bounding_rect: Tuple[list, list], secon
         dif = abs(first_dif - second_dif)
         if dif > max_dif_size:
             max_dif_size = dif
-            entries_left.put(max_dif_entry)
+            entries_left.append(max_dif_entry)
             max_dif_entry = check_entry
         else:
-            entries_left.put(check_entry)
+            entries_left.append(check_entry)
     return max_dif_entry
 
 
@@ -92,7 +92,8 @@ class RTree:
     def create_in_memory(cls, dimensions: int, node_size: int, split_type: RTreeSplitType):
         return cls(MemoryStorage(dimensions, node_size, split_type))
 
-    def _choose_leaf(self, node_idx: int, new_entry: LeafEntry, split_type: RTreeSplitType):
+    def _choose_leaf(self, node_idx: int, new_entry: LeafEntry):
+        # TODO MULTIWAY SEARCH
         node = self._storage.get_node(node_idx)
         if node.is_leaf():
             if node.add_entry(new_entry):
@@ -104,15 +105,17 @@ class RTree:
             min_area = float('inf')
             min_entry = NonLeafEntry
             min_entry_idx = -1
-            for idx, entry in zip(range(len(node.entries)), node.entries):
+            for idx, entry in enumerate(node.entries):
                 new_bounding_box = min_bounding_box(entry.get_bounding_box(), new_entry.get_bounding_box())
-                new_box_area = bounding_box_area(new_bounding_box)
+                new_box_area = bounding_box_area(new_bounding_box)-bounding_box_area(entry.get_bounding_box())
 
                 if new_box_area < min_area:
+                    # TODO RESOLVE TIES
+                    # TODO MULTIWAY
                     min_entry_idx = idx
                     min_area = new_box_area
                     min_entry = entry
-            ret = self._choose_leaf(min_entry.child_idx, new_entry, split_type)
+            ret = self._choose_leaf(min_entry.child_idx, new_entry)
             if type(ret) is tuple:
                 self._storage.set_node(min_entry.child_idx, ret[0])
                 first_node_new_entry = new_parent_entry(ret[0], min_entry.child_idx)
@@ -127,8 +130,9 @@ class RTree:
                 else:
                     return self._split_node(node, self._storage.get_split_type())
             else:
-                node_new_entry = new_parent_entry(ret,min_entry.child_idx)
+                node_new_entry = new_parent_entry(ret, min_entry.child_idx)
                 node.entries[min_entry_idx] = node_new_entry
+                self._storage.set_node(node_idx, node)
                 return node
         pass
 
@@ -146,10 +150,10 @@ class RTree:
                 max_area = box_area
                 max_area_pair = (pair[0], pair[1])
 
-        entries_left = Queue(0)
+        entries_left = deque()
         for entry in split_this.entries:
             if entry != max_area_pair[0] and entry != max_area_pair[1]:
-                entries_left.put(entry)
+                entries_left.append(entry)
 
         first_node_bounding_rect = (max_area_pair[0].get_bounding_box()[0], max_area_pair[0].get_bounding_box()[1])
         first_node = Node(is_leaf=split_this.is_leaf(), max_size=self._storage.get_node_size())
@@ -159,7 +163,7 @@ class RTree:
         second_node = Node(is_leaf=split_this.is_leaf(), max_size=self._storage.get_node_size())
         second_node.add_entry(max_area_pair[1])
 
-        while not entries_left.empty():
+        while entries_left:
             add_now = pick_next(entries_left, first_node_bounding_rect, second_node_bounding_rect)
             first_node_new_rect = min_bounding_box(add_now.get_bounding_box(), first_node_bounding_rect)
             second_node_new_rect = min_bounding_box(add_now.get_bounding_box(), second_node_bounding_rect)
@@ -192,6 +196,7 @@ class RTree:
         pass
 
     def _split_node(self, split_this: Node, insert_node: RTreeSplitType):
+        # TODO SPLIT TYPE
         if insert_node == RTreeSplitType.BRUTE_FORCE:
             return self._brute_force_split(split_this)
         elif insert_node == RTreeSplitType.QUADRATIC:
@@ -202,32 +207,30 @@ class RTree:
 
     def insert(self, indices: List[int], data: int):
         to_insert = LeafEntry(indices, data)
-        ret = self._choose_leaf(0, to_insert, self._storage.get_split_type())
-        new_root = Node(False, self._storage.get_node_size())
+        ret = self._choose_leaf(0, to_insert)
         if type(ret) is tuple:
+            new_root = Node(False, self._storage.get_node_size())
+            # TODO UPRAVIT RETURN TAK ABY VRACEL IDX JEDNOHO NODU
             first_node_idx = self._storage.add_node(ret[0])
             second_node_idx = self._storage.add_node(ret[1])
-            new_first_node = new_parent_entry(ret[0],first_node_idx)
-            new_second_node = new_parent_entry(ret[1],second_node_idx)
+            new_first_node = new_parent_entry(ret[0], first_node_idx)
+            new_second_node = new_parent_entry(ret[1], second_node_idx)
             new_root.add_entry(new_first_node)
             new_root.add_entry(new_second_node)
             self._storage.set_node(0, new_root)
-        else:
-            pass
-
-
+        pass
 
     def _search_dist(self, point: List[int], dist: int) -> List[LeafEntry]:
-        node_queue = Queue(0)
-        node_queue.put(self._storage.get_node(0))
+        node_queue = deque()
+        node_queue.append(self._storage.get_node(0))
         return_list = list()
 
-        while not node_queue.empty():
-            this_node = node_queue.get()
+        while node_queue:
+            this_node = node_queue.popleft()
             if not this_node.is_leaf():
                 for entry in this_node.entries:
                     if overlaps_distance(point, dist, entry.get_bounding_box()):
-                        node_queue.put(self._storage.get_node(this_node.get_child_idx()))
+                        node_queue.append(self._storage.get_node(this_node.get_child_idx()))
             else:
                 for entry in this_node.entries:
                     if overlaps_distance(point, dist, entry.get_bounding_box()):
@@ -235,19 +238,19 @@ class RTree:
         return return_list
 
     def search_range(self, search_box: Tuple[list, list]) -> List[LeafEntry]:
-        node_queue = Queue(0)
-        node_queue.put(self._storage.get_node(0))
+        node_queue = deque()
+        node_queue.append(self._storage.get_node(0))
         return_list = list()
 
         # loads from queue until entry on our position is found or not
-        while not node_queue.empty():
-            this_node = node_queue.get()
+        while node_queue:
+            this_node = node_queue.popleft()
 
             # if the node is not leaf, adds all child nodes that overlap our position to the queue
             if not this_node.is_leaf():
                 for entry in this_node.entries:
                     if overlaps(entry.get_bounding_box(), search_box):
-                        node_queue.put(self._storage.get_node(this_node.get_child_idx()))
+                        node_queue.append(self._storage.get_node(this_node.get_child_idx()))
             # if the node is leaf, iterates through the entries and if found, returns the data on our desired position
             else:
                 for entry in this_node.entries:

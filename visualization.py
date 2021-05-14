@@ -36,7 +36,8 @@ class Visualizer:
                     box.name = 'Node {}'.format(nle.child_idx)
                     fig.add_trace(box)
         fig.add_trace(cls._data(data, dim))
-        fig.show()
+        #fig.show()
+        fig.write_html("HTML.html", auto_open=True)
 
     @classmethod
     def _box(cls, p1: List[int], p2: List[int], dim: int):
@@ -125,13 +126,20 @@ if __name__ == "__main__":
     Visualizer.visualize(tree)
 
     '''
-    tree = RTree.create_in_memory(2, 1024, RTreeSplitType.QUADRATIC)
+    tree = RTree.create_in_file("soubor", 3, 1024, RTreeSplitType.QUADRATIC)
 
-    number_of_entries = 1
+    number_of_entries = 200
 
-    first_coord = [random.randint(0, 100) for x in range(number_of_entries)]
-    second_coord = [random.randint(0, 100) for x in range(number_of_entries)]
-    for x, y, z in zip(first_coord, second_coord, range(number_of_entries)):
-        tree.insert([x, y], z)
+    first_coord = [random.randint(0, 1000) for x in range(number_of_entries)]
+    second_coord = [random.randint(0, 1000) for x in range(number_of_entries)]
+    third_coord = [random.randint(0, 1000) for x in range(number_of_entries)]
+    for x, y, z, s in zip(first_coord, second_coord, third_coord, range(number_of_entries)):
+        if z % 10 == 0:
+            # Visualizer.visualize(tree)
+            # input()
+            pass
+        tree.insert([x, y, z], s)
+
+    print("Ahoj kamo")
 
     Visualizer.visualize(tree)
