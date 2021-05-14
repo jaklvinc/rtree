@@ -92,6 +92,9 @@ class RTree:
     def create_in_memory(cls, dimensions: int, node_size: int, split_type: RTreeSplitType):
         return cls(MemoryStorage(dimensions, node_size, split_type))
 
+    def get_dimensions(self) -> int:
+        return self._storage.get_dim()
+
     def _choose_leaf(self, node_idx: int, new_entry: LeafEntry):
         # TODO MULTIWAY SEARCH
         node = self._storage.get_node(node_idx)
