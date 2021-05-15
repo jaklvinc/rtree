@@ -1,6 +1,6 @@
 .idea/
 *.json
 __pycache__/
-./data/
-./experiments/
-./vis.html
+data/
+experiments/
+vis.html
