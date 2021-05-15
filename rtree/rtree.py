@@ -363,7 +363,7 @@ class RTree:
                             return return_list
         return return_list
 
-    def search_range(self, search_box: Tuple[list, list]) -> List[Tuple[List, int]]:
+    def search_range(self, search_box: Tuple[list, list]) -> List[Tuple[List[int], int]]:
         node_queue = deque()
         node_queue.append(self._storage.get_node(0))
         return_list = set()
@@ -387,7 +387,7 @@ class RTree:
             ret_list.append((entry.coord, entry.data_point))
         return ret_list
 
-    def search_knn(self, search_around: List[int], number_of_entries: int) -> list[tuple[list, int]]:
+    def search_knn(self, search_around: List[int], number_of_entries: int) -> List[Tuple[List[int], int]]:
         root_node = self._storage.get_node(0)
         # bounding box of all entries in the tree
         total_bounding_box = root_node.entries[0].get_bounding_box()
