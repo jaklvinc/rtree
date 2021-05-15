@@ -68,14 +68,13 @@ class ControlPanel:
         return args[0].lower(), args[1:]
 
     def _print_list(self, status: Optional[str]):
-        # TODO: change this?
         cols = ['ID', 'Name', 'Dim', 'Node size', 'Split type']
         cols_w = self._calcColsWidths() if self._trees else [0 for _ in cols]
 
         for i, col in enumerate(cols):
             cols_w[i] = max(cols_w[i], len(col))
 
-        title = 'List of r-trees in directory \'{}\''.format(self._dir)
+        title = 'List of R-trees in directory \'{}\''.format(self._dir)
 
         w = max(sum(cols_w) + len(cols_w) + 1, len(title) + 2, 0 if status is None else len(status) + 4)
 
@@ -84,7 +83,6 @@ class ControlPanel:
         print()
         print()
 
-        # TODO: add more fields
         self._print_table_row(cols, cols_w, w)
         self._print_table_row(('-' * c for c in cols_w), cols_w, w)
 
@@ -104,7 +102,6 @@ class ControlPanel:
 
     def _print_selected(self, status: Optional[str]):
         title = 'R-tree \'{}\''.format(self._selected[0])
-        # TODO: add more fields
         labels = ['Dimensions', 'Node size', 'Split type', 'Number of nodes']
         labels_w = max(len(l) for l in labels)
 
@@ -165,7 +162,7 @@ class ControlPanel:
         print()
 
     def _dialog_create(self, name: str):
-        title = 'Creating r-tree \'{}\''.format(name)
+        title = 'Creating R-tree \'{}\''.format(name)
         labels = [
             ('Dimensions', ': ', self._validate_int, (1, 30)),
             ('Node size', ' (in bytes): ', self._validate_int, (128, 8192)),
@@ -227,7 +224,6 @@ class ControlPanel:
         input(' Press ENTER to quit ')
 
     def _calcColsWidths(self) -> List[int]:
-        # TODO: Add more fields
         return [
             len(str(len(self._trees) - 1)),
             max(len(name) for name, _ in self._trees),
@@ -303,7 +299,7 @@ class ControlPanel:
     def _cmd_select(self, args: List[str]) -> Optional[str]:
         i = self._find_tree_index(args[0])
         if i is None:
-            return 'Cannot find r-tree with id or name \'{}\''.format(args[0])
+            return 'Cannot find R-tree with id or name \'{}\''.format(args[0])
 
         self._selected = self._trees[i]
 
@@ -320,12 +316,12 @@ class ControlPanel:
         except ValueError:
             return 'Node size is too small for this number of dimensions'
         except IOError:
-            return 'Error creating r-tree file'
+            return 'Error creating R-tree file'
 
     def _cmd_rename(self, args: List[str]) -> Optional[str]:
         i = self._find_tree_index(args[0])
         if i is None:
-            return 'Cannot find r-tree with id or name \'{}\''.format(args[0])
+            return 'Cannot find R-tree with id or name \'{}\''.format(args[0])
 
         for name, _ in self._trees:
             if name == args[1]:
@@ -343,12 +339,12 @@ class ControlPanel:
             self._trees.insert(i, (args[1], RTree.from_file(new_path)))
             return 'R-tree renamed'
         except IOError:
-            return 'Error renaming r-tree file'
+            return 'Error renaming R-tree file'
 
     def _cmd_delete(self, args: List[str]) -> Optional[str]:
         i = self._find_tree_index(args[0])
         if i is None:
-            return 'Cannot find r-tree with id or name \'{}\''.format(args[0])
+            return 'Cannot find R-tree with id or name \'{}\''.format(args[0])
 
         try:
             name, tree = self._trees.pop(i)
@@ -357,7 +353,7 @@ class ControlPanel:
             os.remove(os.path.join(self._dir, name + '.rtree'))
             return 'R-tree deleted'
         except IOError:
-            return 'Error deleting r-tree file'
+            return 'Error deleting R-tree file'
 
     def _cmd_show(self, args: List[str]) -> Optional[str]:
         if not 1 <= self._selected[1].get_dimensions() <= 3:
@@ -418,17 +414,17 @@ class ControlPanel:
     _COMMANDS = {
         # CMD, SELECTED_MODE
         ('reload', False): (_cmd_reload, 0, '', 'Reloads the directory'),
-        ('select', False): (_cmd_select, 1, 'R-TREE', 'Selects r-tree to work with'),
-        ('create', False): (_cmd_create, 1, 'NAME', 'Creates new r-tree with name NAME'),
-        ('rename', False): (_cmd_rename, 2, 'R-TREE NAME', 'Renames existing r-tree'),
-        ('delete', False): (_cmd_delete, 1, 'R-TREE', 'Deletes existing r-tree'),
+        ('select', False): (_cmd_select, 1, 'R-TREE', 'Selects R-tree to work with'),
+        ('create', False): (_cmd_create, 1, 'NAME', 'Creates new R-tree with name NAME'),
+        ('rename', False): (_cmd_rename, 2, 'R-TREE NAME', 'Renames existing R-tree'),
+        ('delete', False): (_cmd_delete, 1, 'R-TREE', 'Deletes existing R-tree'),
         ('exit', False): (None, 0, '', 'Exits the program'),
-        ('show', True): (_cmd_show, 0, '', 'Shows visualization of the r-tree (on some systems this may not work, in that case use \'show-html\' instead)'),
-        ('show-html', True): (_cmd_show_html, 0, '', 'Generates visualization of the r-tree to html'),
-        ('insert', True): (_cmd_insert, 1, 'N', 'Inserts N new random data points into the r-tree'),
-        ('search-knn', True): (_cmd_search_knn, 2, 'K "X0, X1, ..., XN"', 'Searches the r-tree for K nearest neighbors to a given point X'),
-        ('search-range', True): (_cmd_search_range, 2, '"X0, X1, ..., XN" "Y0, Y1, ..., YN"', 'Searches the r-tree for data points in a given bounding box. X, Y should be oposite corners'),
-        ('exit', True): (_cmd_exit, 0, '', 'Exits to list od r-trees'),
+        ('show', True): (_cmd_show, 0, '', 'Shows visualization of the R-tree (on some systems this may not work, in that case use \'show-html\' instead)'),
+        ('show-html', True): (_cmd_show_html, 0, '', 'Generates visualization of the R-tree to html'),
+        ('insert', True): (_cmd_insert, 1, 'N', 'Inserts N new random data points into the R-tree'),
+        ('search-knn', True): (_cmd_search_knn, 2, 'K "X0, X1, ..., XN"', 'Searches the R-tree for K nearest neighbors to a given point X'),
+        ('search-range', True): (_cmd_search_range, 2, '"X0, X1, ..., XN" "Y0, Y1, ..., YN"', 'Searches the R-tree for data points in a given bounding box. X, Y should be oposite corners'),
+        ('exit', True): (_cmd_exit, 0, '', 'Exits to list od R-trees'),
     }
     _INSERT_RANGE = (-1000, 1000)
 
