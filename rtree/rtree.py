@@ -34,16 +34,41 @@ def overlaps(first: Tuple[list, list], second: Tuple[list, list]) -> bool:
     return True
 
 
-def overlaps_distance(point: List[int], distance: int, box: Tuple[list, list]) -> bool:
-    my_dist = 0
+'''def overlaps_distance(point: List[int], distance: int, box: Tuple[list, list]) -> bool:
     for x in range(pow(2, len(box[0]))):
+        my_dist = 0
         bin_x = bin(x)[2:].zfill(len(box[0]))
         indices = [int(i) for i in bin_x]
-        for idx, elem in zip(range(len(indices)), indices):
+        for idx, elem in enumerate(indices):
             my_dist += abs(point[idx] - box[elem][idx])
         if my_dist < distance:
             return True
-    return False
+    return False'''
+
+
+def is_in(point: List[int], box: Tuple[list, list]) -> bool:
+    for idx, _ in enumerate(point):
+        if point[idx] < box[0][idx] or point[idx] > box[1][idx]:
+            return False
+    return True
+
+
+def overlaps_distance(point: List[int], distance: int, box: Tuple[list, list]) -> bool:
+    dist = 0
+    if is_in(point, box):
+        return True
+    if is_in(point, ([x-distance for x in box[0]], [y+distance for y in box[1]])):
+        return True
+    for idx, _ in enumerate(point):
+        point_coord = point[idx]
+        first_coord = box[0][idx]
+        first_diff = abs(point_coord-first_coord)
+
+        second_coord = box[1][idx]
+        second_diff = abs(point_coord-second_coord)
+
+        dist += first_diff if first_diff < second_diff else second_diff
+    return dist <= distance
 
 
 def pick_next(entries_left: deque, first_bounding_rect: Tuple[list, list], second_bounding_rect: Tuple[list, list]):
@@ -204,8 +229,8 @@ class RTree:
                     lowest_high_side = entry_box[1][dim]
                     lowes_high_entry = entry
             separation = abs(lowest_high_side-highest_low_side)
-            normalized_separation= separation/w
-            if normalized_separation > max_normalized_separation:
+            normalized_separation = separation/w
+            if normalized_separation > max_normalized_separation and lowes_high_entry != highest_low_entry:
                 max_normalized_separation = normalized_separation
                 first_entry = highest_low_entry
                 second_entry = lowes_high_entry
@@ -238,7 +263,7 @@ class RTree:
                 max_area = box_area
                 max_area_pair = (pair[0], pair[1])
 
-        entries_left = self._left_to_enter(split_this, [0], max_area_pair[1])
+        entries_left = self._left_to_enter(split_this, max_area_pair[0], max_area_pair[1])
 
         first_node_bounding_rect = (max_area_pair[0].get_bounding_box()[0], max_area_pair[0].get_bounding_box()[1])
         first_node = Node(is_leaf=split_this.is_leaf(), max_size=self._storage.get_node_size())
@@ -399,15 +424,21 @@ class RTree:
             return output_list
 
         min_distance = 0
-        closest_list = list
+        closest_list = list()
         list_init = False
         while len(output_list) != number_of_entries:
             if abs(max_distance - min_distance) <= 1:
-                return closest_list # TODO
-            new_distance = (min_distance + max_distance) / 2
+                ret_list = list()
+                for entry in closest_list:
+                    ret_list.append((entry.coord, entry.data_point))
+                return ret_list
+            new_distance = (min_distance + max_distance) // 2
             output_list = self._search_dist(search_around, new_distance)
             if len(output_list) == number_of_entries:
-                return output_list
+                ret_list = list()
+                for entry in output_list:
+                    ret_list.append((entry.coord, entry.data_point))
+                return ret_list
             if len(output_list) > number_of_entries:
                 if not list_init or len(output_list) < len(closest_list):
                     list_init = True
