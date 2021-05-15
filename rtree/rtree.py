@@ -1,4 +1,5 @@
 import sys
+import math
 from itertools import combinations
 from collections import deque
 from .split_type import RTreeSplitType
@@ -43,28 +44,11 @@ def is_in(point: List[int], box: Tuple[list, list]) -> bool:
 
 
 def overlaps_distance(point: List[int], distance: int, box: Tuple[list, list]) -> bool:
-    for i, _ in enumerate(point):
-        first_coord = list()
-        second_coord = list()
-        for j, _ in enumerate(point):
-            first_coord.append(box[0][j]-distance if i == j else box[0][j])
-            second_coord.append(box[1][j]+distance if i == j else box[1][j])
-        if is_in(point, (first_coord, second_coord)):
-            return True
-    closest_point_coords = list()
-    for idx, _ in enumerate(point):
-        point_coord = point[idx]
-        first_coord = box[0][idx]
-        first_diff = abs(point_coord-first_coord)
+    u = [max(0, point[i] - box[1][i]) for i in range(len(point))]
+    v = [max(0, box[0][i] - point[i]) for i in range(len(point))]
 
-        second_coord = box[1][idx]
-        second_diff = abs(point_coord-second_coord)
+    dist = math.sqrt(sum([x * x + y * y for x, y in zip(u, v)]))
 
-        closest_point_coords.append(first_coord if first_diff < second_diff else second_coord)
-    dist = 0
-    for i, _ in enumerate(point):
-        dist += pow(point[i]-closest_point_coords[i], 2)
-    dist = pow(dist, 0.5)
     return dist <= distance
 
 
@@ -233,11 +217,11 @@ class RTree:
         entries_left = self._left_to_enter(split_this, first_entry, second_entry)
 
         first_node_bounding_rect = (first_entry.get_bounding_box()[0], first_entry.get_bounding_box()[1])
-        first_node = Node(is_leaf=split_this.is_leaf(), max_size=self._storage.get_node_size())
+        first_node = Node(is_leaf=split_this.is_leaf(), max_size=split_this.get_max_size())
         first_node.add_entry(first_entry)
 
         second_node_bounding_rect = (second_entry.get_bounding_box()[0], second_entry.get_bounding_box()[1])
-        second_node = Node(is_leaf=split_this.is_leaf(), max_size=self._storage.get_node_size())
+        second_node = Node(is_leaf=split_this.is_leaf(), max_size=split_this.get_max_size())
         second_node.add_entry(second_entry)
 
         while entries_left:
@@ -262,11 +246,11 @@ class RTree:
         entries_left = self._left_to_enter(split_this, max_area_pair[0], max_area_pair[1])
 
         first_node_bounding_rect = (max_area_pair[0].get_bounding_box()[0], max_area_pair[0].get_bounding_box()[1])
-        first_node = Node(is_leaf=split_this.is_leaf(), max_size=self._storage.get_node_size())
+        first_node = Node(is_leaf=split_this.is_leaf(), max_size=split_this.get_max_size())
         first_node.add_entry(max_area_pair[0])
 
         second_node_bounding_rect = (max_area_pair[1].get_bounding_box()[0], max_area_pair[1].get_bounding_box()[1])
-        second_node = Node(is_leaf=split_this.is_leaf(), max_size=self._storage.get_node_size())
+        second_node = Node(is_leaf=split_this.is_leaf(), max_size=split_this.get_max_size())
         second_node.add_entry(max_area_pair[1])
 
         while entries_left:
@@ -325,8 +309,8 @@ class RTree:
                 min_second_entries = second_entries
                 min_area_combined = total_area
 
-        first_node = Node(is_leaf=split_this.is_leaf(), max_size=self._storage.get_node_size())
-        second_node = Node(is_leaf=split_this.is_leaf(), max_size=self._storage.get_node_size())
+        first_node = Node(is_leaf=split_this.is_leaf(), max_size=split_this.get_max_size())
+        second_node = Node(is_leaf=split_this.is_leaf(), max_size=split_this.get_max_size())
 
         for entry in min_first_entries:
             first_node.add_entry(entry)
@@ -350,7 +334,7 @@ class RTree:
         to_insert = LeafEntry(indices, data)
         idx, ret = self._choose_leaf(0, to_insert)
         if type(ret) is tuple:
-            new_root = Node(False, self._storage.get_node_size())
+            new_root = Node(False, 2)
             first_node_idx = self._storage.add_node(ret[0])
             second_node_idx = self._storage.add_node(ret[1])
             new_first_node = new_parent_entry(ret[0], first_node_idx)
@@ -425,8 +409,8 @@ class RTree:
         min_distance = 0
         closest_list = list()
         list_init = False
-        while len(output_list) != number_of_entries:
-            if abs(max_distance - min_distance) <= 0.000001:
+        while True:
+            if math.isclose(max_distance, min_distance):
                 ret_list = list()
                 for entry in range(number_of_entries):
                     ret_list.append((closest_list[entry].coord, closest_list[entry].data_point))
@@ -437,7 +421,6 @@ class RTree:
                 ret_list = list()
                 for entry in output_list:
                     ret_list.append((entry.coord, entry.data_point))
-                # print(new_distance)
                 return ret_list
             if len(output_list) > number_of_entries:
                 if not list_init or len(output_list) < len(closest_list):

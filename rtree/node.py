@@ -48,7 +48,10 @@ class Node:
     
     def is_leaf(self) -> bool:
         return self._is_leaf
-    
+
+    def get_max_size(self) -> int:
+        return self._max_size
+
     def add_entry(self, entry) -> bool:
         if len(self.entries) == self._max_size:
             self.entries.append(entry)
