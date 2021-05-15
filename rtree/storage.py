@@ -83,19 +83,19 @@ class MemoryStorage(Storage):
 
 
 class DiskStorage(Storage):
-    HEADER_SIZE = 13
-    CACHE_SIZE = 1024
+    _HEADER_SIZE = 13
+    _CACHE_SIZE = 1024
 
     def __init__(self, filename: str):
         self._file = open(filename, 'r+b')
-        data = self._file.read(self.HEADER_SIZE)
+        data = self._file.read(self._HEADER_SIZE)
         self._dim = int.from_bytes(data[:4], byteorder='little', signed=False)
         self._node_size = int.from_bytes(data[4:12], byteorder='little', signed=False)
         self._split_type = RTreeSplitType(int.from_bytes(data[12:], byteorder='little', signed=False))
 
         self._cache = []
 
-        for i in range(self.CACHE_SIZE):
+        for i in range(self._CACHE_SIZE):
             # index, changed(bool), is_leaf, entries
             self._cache.append((None, None, None, None))
 
@@ -104,7 +104,7 @@ class DiskStorage(Storage):
         if math.floor((node_size - 9) / (16 * dimensions + 8)) < 2:
             raise ValueError
 
-        data = bytearray(cls.HEADER_SIZE + node_size)
+        data = bytearray(cls._HEADER_SIZE + node_size)
         data[:4] = dimensions.to_bytes(4, byteorder='little', signed=False)
         data[4:12] = node_size.to_bytes(8, byteorder='little', signed=False)
         data[12:13] = split_type.value.to_bytes(1, byteorder='little', signed=False)
@@ -124,7 +124,7 @@ class DiskStorage(Storage):
 
     def count(self) -> int:
         self._file.seek(0, 2)
-        return round((self._file.tell() - self.HEADER_SIZE) / self._node_size)
+        return round((self._file.tell() - self._HEADER_SIZE) / self._node_size)
 
     def get_node(self, index: int) -> Node:
         i = self._get(index, True)
@@ -148,7 +148,7 @@ class DiskStorage(Storage):
         if index >= self.count():
             raise IndexError
 
-        i = index % self.CACHE_SIZE
+        i = index % self._CACHE_SIZE
         if self._cache[i][0] is None or self._cache[i][0] != index:
             if self._cache[i][1] is not None and self._cache[i][1]:
                 self._write(self._cache[i][0], self._cache[i][2], self._cache[i][3])
@@ -179,11 +179,11 @@ class DiskStorage(Storage):
         if len(data) > self.get_node_size():
             raise ValueError
 
-        self._file.seek(self.HEADER_SIZE + index * self._node_size)
+        self._file.seek(self._HEADER_SIZE + index * self._node_size)
         self._file.write(data)
 
     def _read(self, index: int) -> Tuple[bool, list]:
-        self._file.seek(self.HEADER_SIZE + index * self._node_size)
+        self._file.seek(self._HEADER_SIZE + index * self._node_size)
         data = self._file.read(self._node_size)
         is_leaf = bool.from_bytes(data[:1], byteorder='little', signed=False)
         n = int.from_bytes(data[1:9], byteorder='little', signed=False)
@@ -200,7 +200,7 @@ class DiskStorage(Storage):
             else:
                 i, first_coord = self._deserialize_coord(data, i)
                 i, second_coord = self._deserialize_coord(data, i)
-                child_idx = int.from_bytes(data[i:i + 8], byteorder='little', signed=False)
+                child_idx = int.from_bytes(data[i:i+8], byteorder='little', signed=False)
                 i += 8
                 entries.append(NonLeafEntry(first_coord, second_coord, child_idx))
 
@@ -215,7 +215,7 @@ class DiskStorage(Storage):
     def _deserialize_coord(self, data, i: int) -> Tuple[int, list]:
         coord = []
         for _ in range(self._dim):
-            coord.append(int.from_bytes(data[i:i + 8], byteorder='little', signed=True))
+            coord.append(int.from_bytes(data[i:i+8], byteorder='little', signed=True))
             i += 8
         return i, coord
 

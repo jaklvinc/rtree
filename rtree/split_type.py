@@ -18,3 +18,6 @@ class RTreeSplitType(Enum):
             return cls.LINEAR
 
         return None
+
+    def to_str(self):
+        return self.name.lower()
