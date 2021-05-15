@@ -2,6 +2,7 @@ from typing import List, Tuple
 import math
 import random
 import unittest
+from collections import deque
 from rtree import RTree, RTreeSplitType
 from rtree.storage import Storage
 
@@ -70,6 +71,32 @@ class TestCreateInsertSearch(unittest.TestCase):
         for i in range(max_entries + 1):
             tree.insert(self._random_point(dim), i)
             self.assertEqual(tree._storage.count(), 1 if i <= max_entries else 3)
+
+    def test_insert(self):
+        dim = random.randint(1, 5)
+        tree = self._create_rtree_and_insert(dim, 128, RTreeSplitType.LINEAR, 2183)
+
+        box = ([-1000 for _ in range(dim)], [1000 for _ in range(dim)])
+
+        self.assertEqual(len(tree.search_range(box)), 2183)
+
+    def test_leaks(self):
+        dim = random.randint(1, 5)
+        tree = self._create_rtree_and_insert(dim, 128, RTreeSplitType.LINEAR, 2000)
+
+        indexes = [0]
+        queue = deque()
+        queue.append(tree._storage.get_node(0))
+
+        while queue:
+            node = queue.popleft()
+            if not node.is_leaf():
+                for x in node.entries:
+                    indexes.append(x.child_idx)
+                    queue.append(tree._storage.get_node(x.child_idx))
+
+        for i in range(len(indexes)):
+            self.assertIn(i, indexes)
 
     def test_1d_128_brute_force_200_range(self):
         self._test_range(1, 128, RTreeSplitType.BRUTE_FORCE, 200)
