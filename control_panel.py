@@ -357,14 +357,14 @@ class ControlPanel:
 
     def _cmd_show(self, args: List[str]) -> Optional[str]:
         if not 1 <= self._selected[1].get_dimensions() <= 3:
-            return 'Visualization is only available for up to 3 dimensional trees'
+            return 'Visualization is only available for up to 3 dimensional R-trees'
 
         Visualizer.visualize(self._selected[1])
         return 'Opening visualization in browser'
 
     def _cmd_show_html(self, args: List[str]) -> Optional[str]:
         if not 1 <= self._selected[1].get_dimensions() <= 3:
-            return 'Visualization is only available for up to 3 dimensional trees'
+            return 'Visualization is only available for up to 3 dimensional R-trees'
 
         Visualizer.visualize(self._selected[1], True)
         return 'Visualization generated to \'./vis.html\''
@@ -427,8 +427,3 @@ class ControlPanel:
         ('exit', True): (_cmd_exit, 0, '', 'Exits to list od R-trees'),
     }
     _INSERT_RANGE = (-1000, 1000)
-
-
-if __name__ == "__main__":
-    panel = ControlPanel('./data')
-    panel.run()
