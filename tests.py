@@ -64,7 +64,7 @@ class TestCreateInsertSearch(unittest.TestCase):
 
     def test_split(self):
         dim = random.randint(1, 5)
-        node_size = random.randint(128, 4096)
+        node_size = random.randint(128 if dim < 3 else 256, 4096)
         tree = TestRTree.create_in_memory(dim, node_size, RTreeSplitType.LINEAR)
         max_entries = tree._storage._max_entries(False)
 
