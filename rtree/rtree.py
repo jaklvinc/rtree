@@ -344,7 +344,7 @@ class RTree:
             self._storage.set_node(0, new_root)
         pass
 
-    def _search_dist(self, point: List[int], dist: int) -> List[LeafEntry]:
+    def _search_dist(self, point: List[int], dist: int, number_of_entries: int) -> List[LeafEntry]:
         node_queue = deque()
         node_queue.append(self._storage.get_node(0))
         return_list = list()
@@ -359,6 +359,8 @@ class RTree:
                 for entry in this_node.entries:
                     if overlaps_distance(point, dist, entry.get_bounding_box()):
                         return_list.append(entry)
+                        if len(return_list) > number_of_entries:
+                            return return_list
         return return_list
 
     def search_range(self, search_box: Tuple[list, list]) -> List[Tuple[List, int]]:
@@ -399,7 +401,7 @@ class RTree:
         # max distance from point that is worth trying to cover
         max_distance = max(first_coord_distance, second_coord_distance)*2
 
-        output_list = self._search_dist(search_around, max_distance)
+        output_list = self._search_dist(search_around, max_distance, number_of_entries)
         if len(output_list) <= number_of_entries:
             ret_list = list()
             for entry in output_list:
@@ -416,7 +418,7 @@ class RTree:
                     ret_list.append((closest_list[entry].coord, closest_list[entry].data_point))
                 return ret_list
             new_distance = (min_distance + max_distance) / 2
-            output_list = self._search_dist(search_around, new_distance)
+            output_list = self._search_dist(search_around, new_distance, number_of_entries)
             if len(output_list) == number_of_entries:
                 ret_list = list()
                 for entry in output_list:
