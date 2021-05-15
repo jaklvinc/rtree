@@ -198,7 +198,7 @@ class TestCreateInsertSearch(unittest.TestCase):
             self.assertTrue(x in res)
 
     def _assert_knn(self, seq_res: list, res: list, k: int):
-        self.assertEqual(len(seq_res), k)
+        self.assertEqual(len(res), k)
 
         for x in res:
             self.assertTrue(x in seq_res)
