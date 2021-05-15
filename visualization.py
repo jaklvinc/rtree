@@ -31,7 +31,7 @@ class Visualizer:
                 for nle in node.entries:
                     queue.append((nle.child_idx, tree._storage.get_node(nle.child_idx)))
                     box = cls._box(nle.first_coord, nle.second_coord, dim)
-                    box.name = 'R{}(parent R{})'.format(nle.child_idx, i)
+                    box.name = 'R{}(parent = R{})'.format(nle.child_idx, i)
                     fig.add_trace(box)
         fig.add_trace(cls._data(data, dim))
 
