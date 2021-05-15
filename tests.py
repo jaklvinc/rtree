@@ -74,7 +74,7 @@ class TestCreateInsertSearch(unittest.TestCase):
 
     def test_insert(self):
         dim = random.randint(1, 5)
-        tree = self._create_rtree_and_insert(dim, 128, RTreeSplitType.LINEAR, 2183)
+        tree = self._create_rtree_and_insert(dim, 256, RTreeSplitType.LINEAR, 2183)
 
         box = ([-1000 for _ in range(dim)], [1000 for _ in range(dim)])
 
@@ -82,7 +82,7 @@ class TestCreateInsertSearch(unittest.TestCase):
 
     def test_leaks(self):
         dim = random.randint(1, 5)
-        tree = self._create_rtree_and_insert(dim, 128, RTreeSplitType.LINEAR, 2000)
+        tree = self._create_rtree_and_insert(dim, 256, RTreeSplitType.LINEAR, 2000)
 
         indexes = [0]
         queue = deque()
