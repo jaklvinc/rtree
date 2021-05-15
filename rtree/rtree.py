@@ -1,3 +1,4 @@
+import sys
 from itertools import combinations
 from collections import deque
 from .split_type import RTreeSplitType
@@ -34,18 +35,6 @@ def overlaps(first: Tuple[list, list], second: Tuple[list, list]) -> bool:
     return True
 
 
-'''def overlaps_distance(point: List[int], distance: int, box: Tuple[list, list]) -> bool:
-    for x in range(pow(2, len(box[0]))):
-        my_dist = 0
-        bin_x = bin(x)[2:].zfill(len(box[0]))
-        indices = [int(i) for i in bin_x]
-        for idx, elem in enumerate(indices):
-            my_dist += abs(point[idx] - box[elem][idx])
-        if my_dist < distance:
-            return True
-    return False'''
-
-
 def is_in(point: List[int], box: Tuple[list, list]) -> bool:
     for idx, _ in enumerate(point):
         if point[idx] < box[0][idx] or point[idx] > box[1][idx]:
@@ -54,11 +43,15 @@ def is_in(point: List[int], box: Tuple[list, list]) -> bool:
 
 
 def overlaps_distance(point: List[int], distance: int, box: Tuple[list, list]) -> bool:
-    dist = 0
-    if is_in(point, box):
-        return True
-    if is_in(point, ([x-distance for x in box[0]], [y+distance for y in box[1]])):
-        return True
+    for i, _ in enumerate(point):
+        first_coord = list()
+        second_coord = list()
+        for j, _ in enumerate(point):
+            first_coord.append(box[0][j]-distance if i == j else box[0][j])
+            second_coord.append(box[1][j]+distance if i == j else box[1][j])
+        if is_in(point, (first_coord, second_coord)):
+            return True
+    closest_point_coords = list()
     for idx, _ in enumerate(point):
         point_coord = point[idx]
         first_coord = box[0][idx]
@@ -67,7 +60,11 @@ def overlaps_distance(point: List[int], distance: int, box: Tuple[list, list]) -
         second_coord = box[1][idx]
         second_diff = abs(point_coord-second_coord)
 
-        dist += first_diff if first_diff < second_diff else second_diff
+        closest_point_coords.append(first_coord if first_diff < second_diff else second_coord)
+    dist = 0
+    for i, _ in enumerate(point):
+        dist += pow(point[i]-closest_point_coords[i], 2)
+    dist = pow(dist, 0.5)
     return dist <= distance
 
 
@@ -121,7 +118,6 @@ class RTree:
         return self._storage.get_dim()
 
     def _choose_leaf(self, node_idx: int, new_entry: LeafEntry):
-        # TODO MULTIWAY SEARCH
         node = self._storage.get_node(node_idx)
         if node.is_leaf():
             if node.add_entry(new_entry):
@@ -212,12 +208,12 @@ class RTree:
             total_bounding_box = min_bounding_box(total_bounding_box, root_node.entries[x].get_bounding_box())
 
         max_normalized_separation = float("-inf")
-        first_entry = None
-        second_entry = None
+        first_entry = split_this.entries[0]
+        second_entry = split_this.entries[1]
         for dim, _ in enumerate(split_this.entries[0].get_bounding_box()[0]):
             w = abs(total_bounding_box[1][dim]-total_bounding_box[0][dim])
             lowest_high_side = float('inf')
-            lowes_high_entry = None
+            lowest_high_entry = None
             highest_low_side = float('-inf')
             highest_low_entry = None
             for entry in split_this.entries:
@@ -227,13 +223,13 @@ class RTree:
                     highest_low_entry = entry
                 if entry_box[1][dim] < lowest_high_side:
                     lowest_high_side = entry_box[1][dim]
-                    lowes_high_entry = entry
+                    lowest_high_entry = entry
             separation = abs(lowest_high_side-highest_low_side)
             normalized_separation = separation/w
-            if normalized_separation > max_normalized_separation and lowes_high_entry != highest_low_entry:
+            if normalized_separation > max_normalized_separation and lowest_high_entry != highest_low_entry:
                 max_normalized_separation = normalized_separation
                 first_entry = highest_low_entry
-                second_entry = lowes_high_entry
+                second_entry = lowest_high_entry
         entries_left = self._left_to_enter(split_this, first_entry, second_entry)
 
         first_node_bounding_rect = (first_entry.get_bounding_box()[0], first_entry.get_bounding_box()[1])
@@ -405,7 +401,7 @@ class RTree:
             ret_list.append((entry.coord, entry.data_point))
         return ret_list
 
-    def search_knn(self, search_around: List[int], number_of_entries: int) -> List[LeafEntry]:
+    def search_knn(self, search_around: List[int], number_of_entries: int) -> list[tuple[list, int]]:
         root_node = self._storage.get_node(0)
         # bounding box of all entries in the tree
         total_bounding_box = root_node.entries[0].get_bounding_box()
@@ -417,27 +413,31 @@ class RTree:
             first_coord_distance += abs(total_bounding_box[0][x] - search_around[x])
             second_coord_distance += abs(total_bounding_box[1][x] - search_around[x])
         # max distance from point that is worth trying to cover
-        max_distance = max(first_coord_distance, second_coord_distance)
+        max_distance = max(first_coord_distance, second_coord_distance)*2
 
         output_list = self._search_dist(search_around, max_distance)
         if len(output_list) <= number_of_entries:
-            return output_list
+            ret_list = list()
+            for entry in output_list:
+                ret_list.append((entry.coord, entry.data_point))
+            return ret_list
 
         min_distance = 0
         closest_list = list()
         list_init = False
         while len(output_list) != number_of_entries:
-            if abs(max_distance - min_distance) <= 1:
+            if abs(max_distance - min_distance) <= 0.000001:
                 ret_list = list()
-                for entry in closest_list:
-                    ret_list.append((entry.coord, entry.data_point))
+                for entry in range(number_of_entries):
+                    ret_list.append((closest_list[entry].coord, closest_list[entry].data_point))
                 return ret_list
-            new_distance = (min_distance + max_distance) // 2
+            new_distance = (min_distance + max_distance) / 2
             output_list = self._search_dist(search_around, new_distance)
             if len(output_list) == number_of_entries:
                 ret_list = list()
                 for entry in output_list:
                     ret_list.append((entry.coord, entry.data_point))
+                # print(new_distance)
                 return ret_list
             if len(output_list) > number_of_entries:
                 if not list_init or len(output_list) < len(closest_list):
