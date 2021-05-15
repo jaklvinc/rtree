@@ -173,7 +173,7 @@ def seq_search_knn(tree: RTree, point: List[int], k: int) -> List[Tuple[List[int
 
 
 def insert_search_time(size: int, split_type: RTreeSplitType, data: List[Tuple[List[int], int]], boxes: List[Tuple[List[int], List[int]]], i_y: List[float], s_y: List[float]):
-    tree = RTree.create_in_memory(2, size, split_type)
+    tree = RTree.create_in_file('./experiments/tmp.rtree', 2, size, split_type)
     i_t, _ = time_fn(insert_data, tree, data)
     i_y.append(i_t)
 
@@ -182,6 +182,8 @@ def insert_search_time(size: int, split_type: RTreeSplitType, data: List[Tuple[L
         s, _ = time_fn(tree.search_range, box)
         s_t += s
     s_y.append(s_t)
+
+    print(size, split_type.to_str())
 
 
 def insert_search_node_size_fig(x: List[int], bf: List[float], q: List[float], l: List[float], y_title: str) -> go.Figure:
@@ -211,7 +213,7 @@ def experiment_insert_search_node_size():
     q_s_y = []
     l_s_y = []
 
-    for size in range(160, 4097, 32):
+    for size in range(128, 4097, 32):
         if size > 256 and size % 128 != 0:
             continue
 
@@ -222,6 +224,8 @@ def experiment_insert_search_node_size():
 
         insert_search_time(size, RTreeSplitType.QUADRATIC, data, boxes, q_i_y, q_s_y)
         insert_search_time(size, RTreeSplitType.LINEAR, data, boxes, l_i_y, l_s_y)
+
+    os.remove('./experiments/tmp.rtree')
 
     fig_i = insert_search_node_size_fig(x, bf_i_y, q_i_y, l_i_y, 'Time to insert 1000 data points [s]')
     fig_i.write_html('./experiments/insert_node_size.html', auto_open=True)
